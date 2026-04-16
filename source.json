@@ -1,0 +1,4 @@
+{
+  "upstream": "anthropics/claude-code-action",
+  "version": "v1"
+}
