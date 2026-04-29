@@ -1,5 +1,5 @@
 {
   "owner": "anthropics",
   "name": "claude-code-action",
-  "visibility": ""
+  "visibility": "internal"
 }
