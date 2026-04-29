@@ -1,6 +1,12 @@
 # anthropics/claude-code-action
 
-Hardened GitHub Action by [Chainguard](https://www.chainguard.dev).
+Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at [https://github.com/anthropics/claude-code-action](https://github.com/anthropics/claude-code-action).
+
+## Versions
+
+| Version | Tag | Upstream commit |
+|---------|-----|-----------------|
+| v1 | [`v1`](https://github.com/chainguard-actions/claude-code-action/tree/v1) | — |
 
 ## Privacy
 
