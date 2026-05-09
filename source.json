@@ -1,4 +1,6 @@
 {
-  "upstream": "anthropics/claude-code-action",
-  "version": "v1"
+  "owner": "anthropics",
+  "repo": "claude-code-action",
+  "version": "",
+  "url": "https://github.com/anthropics/claude-code-action"
 }
