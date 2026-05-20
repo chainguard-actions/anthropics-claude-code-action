@@ -1,6 +1,0 @@
-{
-  "owner": "anthropics",
-  "name": "claude-code-action",
-  "visibility": "internal",
-  "block_publish": false
-}
