@@ -8,6 +8,7 @@ Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at
 |---------|-----|-----------------|
 | v1 | [`v1`](https://github.com/chainguard-actions/anthropics-claude-code-action/tree/v1) | — |
 | v1.0.169 | [`v1.0.169`](https://github.com/chainguard-actions/anthropics-claude-code-action/tree/v1.0.169) | [`37b464c`](https://github.com/anthropics/claude-code-action/commit/37b464ce72700f7b2c5ff8d2db7fa7b15df792f5) |
+| v1.0.69 | [`v1.0.69`](https://github.com/chainguard-actions/anthropics-claude-code-action/tree/v1.0.69) | [`1fc90f3`](https://github.com/anthropics/claude-code-action/commit/1fc90f3ed982521116d8ff6d85b948c9b12cae3e) |
 
 ## Privacy
 
