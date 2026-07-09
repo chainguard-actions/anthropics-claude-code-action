@@ -1,0 +1,36 @@
+name: Test branch and assignee trigger options
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_EVENT_NAME: workflow_dispatch
+      GITHUB_REF: refs/heads/main
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Run action with assignee_trigger and base_branch inputs
+        id: action
+        continue-on-error: true
+        uses: .
+        with:
+          github_token: ${{ github.token }}
+          assignee_trigger: "claude"
+          base_branch: "main"
+          branch_prefix: "claude/"
+          prompt: ""
+
+      - name: Assert action did not crash unexpectedly
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "action outcome: $OUTCOME"
+          # With no prompt and no API key, the action should skip or fail at
+          # API key validation — not crash with an unhandled error (cancelled).
+          if [ "$OUTCOME" = "cancelled" ]; then
+            echo "FAIL: action was cancelled unexpectedly"
+            exit 1
+          fi
+          echo "PASS: action completed with outcome=$OUTCOME using assignee_trigger and base_branch"

@@ -1,0 +1,37 @@
+name: Test missing API key produces clear error
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_EVENT_NAME: workflow_dispatch
+      GITHUB_REF: refs/heads/main
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Run action with prompt but no API key
+        id: action
+        continue-on-error: true
+        uses: .
+        with:
+          github_token: ${{ github.token }}
+          prompt: "Say hello"
+          # No anthropic_api_key provided — should fail at env validation
+
+      - name: Assert action failed (not skipped or cancelled)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "action outcome: $OUTCOME"
+          # Without an API key, the action must fail (not succeed or be cancelled)
+          if [ "$OUTCOME" = "success" ]; then
+            echo "FAIL: action unexpectedly succeeded without an API key"
+            exit 1
+          fi
+          if [ "$OUTCOME" = "cancelled" ]; then
+            echo "FAIL: action was cancelled unexpectedly"
+            exit 1
+          fi
+          echo "PASS: action failed as expected when API key is missing (outcome=$OUTCOME)"

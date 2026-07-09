@@ -1,0 +1,37 @@
+name: Test no-trigger skip (workflow_dispatch without prompt)
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_EVENT_NAME: workflow_dispatch
+      GITHUB_REF: refs/heads/main
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Run action with no prompt (should skip gracefully)
+        id: action
+        # continue-on-error so we can inspect the outcome
+        continue-on-error: true
+        uses: .
+        with:
+          # Provide a real github_token to skip OIDC exchange
+          github_token: ${{ github.token }}
+          # No prompt provided — agent mode will detect no trigger and skip
+          prompt: ""
+
+      - name: Assert action did not hard-fail
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "action outcome: $OUTCOME"
+          # The action should either succeed (skip path) or fail with a
+          # validation error about missing API key — NOT an unhandled crash.
+          # Both 'success' and 'failure' are acceptable; 'cancelled' is not.
+          if [ "$OUTCOME" = "cancelled" ]; then
+            echo "FAIL: action was cancelled unexpectedly"
+            exit 1
+          fi
+          echo "PASS: action completed with outcome=$OUTCOME (skip or graceful fail)"

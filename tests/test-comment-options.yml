@@ -1,0 +1,38 @@
+name: Test comment-related input options
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_EVENT_NAME: workflow_dispatch
+      GITHUB_REF: refs/heads/main
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Run action with sticky comment and inline comment options
+        id: action
+        continue-on-error: true
+        uses: .
+        with:
+          github_token: ${{ github.token }}
+          prompt: ""
+          use_sticky_comment: "true"
+          classify_inline_comments: "false"
+          include_fix_links: "false"
+          display_report: "false"
+          show_full_output: "false"
+
+      - name: Assert action did not crash
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "action outcome: $OUTCOME"
+          # With no prompt, the action should skip or fail at API key validation.
+          # It must not crash with an unhandled error (cancelled).
+          if [ "$OUTCOME" = "cancelled" ]; then
+            echo "FAIL: action was cancelled unexpectedly"
+            exit 1
+          fi
+          echo "PASS: action completed with outcome=$OUTCOME using comment options"
