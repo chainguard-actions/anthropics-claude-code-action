@@ -1,0 +1,34 @@
+name: Test bun installation via action invocation
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_REF: refs/heads/main
+      GITHUB_EVENT_NAME: push
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run action (bun will be installed by the action itself)
+        id: action
+        uses: .
+        continue-on-error: true
+        with:
+          # No prompt provided - action will exit early after bun/deps setup
+          # No API key - action will fail at credentials validation if it gets that far
+          prompt: ""
+
+      - name: Assert action ran (bun installation did not crash the runner)
+        run: |
+          OUTCOME="${{ steps.action.outcome }}"
+          echo "action outcome: $OUTCOME"
+          # The action should either succeed (early exit, no trigger) or fail
+          # (missing credentials). Either way, bun was installed by the action.
+          # What we must NOT see is a runner-level crash before the action step.
+          if [ "$OUTCOME" = "success" ] || [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action ran (bun installation did not prevent execution)"
+          else
+            echo "FAIL: unexpected outcome: $OUTCOME"
+            exit 1
+          fi

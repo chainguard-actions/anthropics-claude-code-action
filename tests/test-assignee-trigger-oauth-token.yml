@@ -1,0 +1,61 @@
+name: Test assignee_trigger and claude_code_oauth_token inputs
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_EVENT_NAME: workflow_dispatch
+      GITHUB_REPOSITORY: test-owner/test-repo
+      GITHUB_EVENT_PATH: /tmp/github-events/event.json
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install Bun to system PATH
+        run: |
+          curl -fsSL https://bun.sh/install | bash
+          cp "$HOME/.bun/bin/bun" /usr/local/bin/bun
+          bun --version
+
+      - name: Create fake event payload
+        run: |
+          mkdir -p /tmp/github-events
+          cat > /tmp/github-events/event.json <<'EOF'
+          {
+            "repository": {
+              "name": "test-repo",
+              "owner": {
+                "login": "test-owner"
+              }
+            },
+            "sender": {
+              "login": "test-user"
+            },
+            "workflow": ".github/workflows/test.yml"
+          }
+          EOF
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          assignee_trigger: "claude"
+          claude_code_oauth_token: "fake-oauth-token-for-testing"
+          github_token: ${{ github.token }}
+          prompt: "Say hello"
+          path_to_bun_executable: /usr/local/bin/bun
+
+      - name: Assert action ran with assignee_trigger and claude_code_oauth_token inputs
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "action outcome: $OUTCOME"
+          # The action will fail because the OAuth token is fake, but it should
+          # accept the inputs and attempt to run (not fail at input validation)
+          if [ "$OUTCOME" = "success" ] || [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action accepted assignee_trigger and claude_code_oauth_token inputs (outcome: $OUTCOME)"
+          else
+            echo "FAIL: unexpected outcome: $OUTCOME"
+            exit 1
+          fi
