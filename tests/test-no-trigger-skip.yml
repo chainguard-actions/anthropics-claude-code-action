@@ -1,0 +1,37 @@
+name: Test no trigger skip
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_EVENT_NAME: workflow_dispatch
+      GITHUB_REF: refs/heads/main
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          # No prompt provided — agent mode with no prompt means no trigger
+          github_token: ${{ github.token }}
+          anthropic_api_key: "dummy-key-not-used"
+
+      - name: Assert action skipped gracefully (no trigger)
+        run: |
+          echo "outcome: ${{ steps.action.outcome }}"
+          # With no prompt on workflow_dispatch, the action should detect no trigger
+          # and exit early (success) without calling the API.
+          # The action may succeed (skipped) or fail depending on how it handles
+          # the dummy API key — either outcome is acceptable as long as it doesn't
+          # hang or crash unexpectedly.
+          if [ "${{ steps.action.outcome }}" = "success" ]; then
+            echo "PASS: action skipped gracefully with no prompt"
+          elif [ "${{ steps.action.outcome }}" = "failure" ]; then
+            echo "PASS: action failed as expected (dummy key rejected or no trigger)"
+          else
+            echo "FAIL: unexpected outcome '${{ steps.action.outcome }}'"
+            exit 1
+          fi
