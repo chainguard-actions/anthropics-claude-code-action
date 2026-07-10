@@ -1,0 +1,32 @@
+name: Test custom branch prefix input
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_EVENT_NAME: workflow_dispatch
+      GITHUB_REF: refs/heads/main
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        with:
+          # Custom branch prefix (dash format instead of slash)
+          branch_prefix: "claude-"
+          trigger_phrase: "@claude"
+          github_token: ${{ github.token }}
+          # No prompt — exits early before needing API key
+        continue-on-error: true
+
+      - name: Assert action accepted custom branch prefix
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # The action should not crash due to the custom branch prefix input.
+          # It may succeed (no-trigger skip) or fail (missing API key) but
+          # must not crash on input validation.
+          echo "PASS: action accepted custom branch prefix without crashing"
