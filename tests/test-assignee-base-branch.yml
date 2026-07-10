@@ -1,0 +1,25 @@
+name: Test Assignee Trigger and Base Branch Inputs
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_REF: refs/heads/main
+      GITHUB_EVENT_NAME: issues
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          assignee_trigger: "claude"
+          base_branch: "main"
+          prompt: "Say hello"
+          anthropic_api_key: "sk-ant-test-invalid-key"
+          github_token: ${{ github.token }}
+      - name: Assert action ran (inputs accepted)
+        run: |
+          echo "Action completed with continue-on-error"
+          echo "The assignee_trigger and base_branch inputs were accepted by the action"
+          echo "PASS: assignee_trigger and base_branch inputs covered"

@@ -1,0 +1,41 @@
+name: Test Bun installation and action setup
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_EVENT_NAME: workflow_dispatch
+      GITHUB_REF: refs/heads/main
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          prompt: ""
+          anthropic_api_key: "dummy-key-bun-test"
+          github_token: ${{ github.token }}
+
+      - name: Assert Bun was installed
+        run: |
+          echo "Checking if bun is available..."
+          if command -v bun > /dev/null 2>&1; then
+            BUN_VERSION=$(bun --version)
+            echo "PASS: bun is available, version: $BUN_VERSION"
+          else
+            echo "FAIL: bun was not installed by the action"
+            exit 1
+          fi
+
+      - name: Assert action outcome is not cancelled
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "action outcome: $OUTCOME"
+          if [ "$OUTCOME" = "cancelled" ]; then
+            echo "FAIL: action was cancelled unexpectedly"
+            exit 1
+          fi
+          echo "PASS: action completed with outcome=$OUTCOME"
