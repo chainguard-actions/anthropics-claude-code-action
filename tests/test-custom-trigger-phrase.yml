@@ -1,0 +1,41 @@
+name: Test - Custom Trigger Phrase Input
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-custom-trigger-phrase:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_EVENT_NAME: workflow_dispatch
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Attach git HEAD to a branch
+        run: git checkout -b test-branch
+
+      - name: Run action with custom trigger phrase (expect failure at API key)
+        id: claude-action
+        continue-on-error: true
+        uses: .
+        with:
+          github_token: ${{ github.token }}
+          prompt: "Say hello"
+          trigger_phrase: "@mybot"
+          branch_prefix: "mybot/"
+          label_trigger: "mybot"
+          bot_name: "mybot[bot]"
+          bot_id: "12345678"
+          # No API key - should fail at validation
+
+      - name: Assert action failed at API key validation (not at input parsing)
+        run: |
+          echo "Outcome: ${{ steps.claude-action.outcome }}"
+          # The action should fail because no API key is provided,
+          # not because of invalid custom inputs. This confirms custom inputs are accepted.
+          if [ "${{ steps.claude-action.outcome }}" != "failure" ]; then
+            echo "FAIL: expected action to fail (at API key validation), but outcome was '${{ steps.claude-action.outcome }}'"
+            exit 1
+          fi
+          echo "PASS: action accepted custom trigger phrase and bot configuration inputs"

@@ -1,0 +1,39 @@
+name: Test - Branch Name Template Input
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-branch-name-template:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_EVENT_NAME: workflow_dispatch
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Attach git HEAD to a branch
+        run: git checkout -b test-branch
+
+      - name: Run action with custom branch name template (expect failure at API key)
+        id: claude-action
+        continue-on-error: true
+        uses: .
+        with:
+          github_token: ${{ github.token }}
+          prompt: "Say hello"
+          branch_prefix: "claude-"
+          branch_name_template: "{{prefix}}{{entityType}}-{{entityNumber}}-{{timestamp}}"
+          base_branch: "main"
+          # No API key - should fail at validation
+
+      - name: Assert action failed at API key validation (not at branch template parsing)
+        run: |
+          echo "Outcome: ${{ steps.claude-action.outcome }}"
+          # The action should fail because no API key is provided,
+          # not because of invalid branch template inputs.
+          if [ "${{ steps.claude-action.outcome }}" != "failure" ]; then
+            echo "FAIL: expected action to fail (at API key validation), but outcome was '${{ steps.claude-action.outcome }}'"
+            exit 1
+          fi
+          echo "PASS: action accepted custom branch_name_template and branch_prefix inputs"

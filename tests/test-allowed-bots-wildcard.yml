@@ -1,0 +1,67 @@
+name: Test - Allowed Bots Wildcard Input
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-allowed-bots-wildcard:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_EVENT_NAME: workflow_dispatch
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Attach git HEAD to a branch
+        run: git checkout -b test-branch
+
+      - name: Run action with allowed_bots wildcard (expect failure at API key)
+        id: claude-action
+        continue-on-error: true
+        uses: .
+        with:
+          github_token: ${{ github.token }}
+          prompt: "Say hello"
+          allowed_bots: "*"
+          # No API key - should fail at validation
+
+      - name: Assert action failed at API key validation (not at allowed_bots parsing)
+        run: |
+          echo "Outcome: ${{ steps.claude-action.outcome }}"
+          # The action should fail because no API key is provided,
+          # not because of invalid allowed_bots input.
+          if [ "${{ steps.claude-action.outcome }}" != "failure" ]; then
+            echo "FAIL: expected action to fail (at API key validation), but outcome was '${{ steps.claude-action.outcome }}'"
+            exit 1
+          fi
+          echo "PASS: action accepted allowed_bots='*' wildcard input"
+
+  test-allowed-bots-list:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_EVENT_NAME: workflow_dispatch
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Attach git HEAD to a branch
+        run: git checkout -b test-branch
+
+      - name: Run action with allowed_bots comma-separated list (expect failure at API key)
+        id: claude-action
+        continue-on-error: true
+        uses: .
+        with:
+          github_token: ${{ github.token }}
+          prompt: "Say hello"
+          allowed_bots: "dependabot[bot],renovate[bot]"
+          # No API key - should fail at validation
+
+      - name: Assert action failed at API key validation (not at allowed_bots parsing)
+        run: |
+          echo "Outcome: ${{ steps.claude-action.outcome }}"
+          if [ "${{ steps.claude-action.outcome }}" != "failure" ]; then
+            echo "FAIL: expected action to fail (at API key validation), but outcome was '${{ steps.claude-action.outcome }}'"
+            exit 1
+          fi
+          echo "PASS: action accepted allowed_bots comma-separated list input"

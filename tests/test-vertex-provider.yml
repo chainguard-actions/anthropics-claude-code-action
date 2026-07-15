@@ -1,0 +1,32 @@
+name: Test Vertex AI provider configuration
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_EVENT_NAME: push
+      GITHUB_REF: refs/heads/main
+      ANTHROPIC_VERTEX_PROJECT_ID: my-gcp-project
+      CLOUD_ML_REGION: us-central1
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          prompt: "Say hello"
+          use_vertex: "true"
+          # No GCP credentials — will fail, but tests that Vertex inputs are accepted
+
+      - name: Assert action failed due to missing GCP credentials not bad inputs
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" != "failure" ]; then
+            echo "FAIL: expected action to fail (missing GCP credentials), got outcome=$OUTCOME"
+            exit 1
+          fi
+          echo "PASS: action accepted Vertex AI provider inputs and failed as expected (missing credentials)"

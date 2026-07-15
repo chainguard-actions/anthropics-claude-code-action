@@ -1,0 +1,33 @@
+name: Test issue comment trigger phrase
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_EVENT_NAME: issue_comment
+      GITHUB_REF: refs/heads/main
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          trigger_phrase: "@claude"
+          prompt: "Help with this issue"
+          label_trigger: "claude"
+          branch_prefix: "claude/"
+          use_sticky_comment: "true"
+          # No API key — will fail, but tests that issue_comment event context is accepted
+
+      - name: Assert action failed due to missing credentials not bad inputs
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" != "failure" ]; then
+            echo "FAIL: expected action to fail (missing API key), got outcome=$OUTCOME"
+            exit 1
+          fi
+          echo "PASS: action accepted issue_comment event context and failed as expected (missing API key)"

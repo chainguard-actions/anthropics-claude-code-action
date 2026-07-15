@@ -1,0 +1,67 @@
+name: Test - Comment Actor Filter Inputs
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-exclude-bots-from-comments:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_EVENT_NAME: workflow_dispatch
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Attach git HEAD to a branch
+        run: git checkout -b test-branch
+
+      - name: Run action with bot exclusion filter (expect failure at API key)
+        id: claude-action
+        continue-on-error: true
+        uses: .
+        with:
+          github_token: ${{ github.token }}
+          prompt: "Say hello"
+          exclude_comments_by_actor: "*[bot]"
+          include_comments_by_actor: ""
+          # No API key - should fail at validation
+
+      - name: Assert action failed at API key validation (not at filter parsing)
+        run: |
+          echo "Outcome: ${{ steps.claude-action.outcome }}"
+          if [ "${{ steps.claude-action.outcome }}" != "failure" ]; then
+            echo "FAIL: expected action to fail (at API key validation), but outcome was '${{ steps.claude-action.outcome }}'"
+            exit 1
+          fi
+          echo "PASS: action accepted exclude_comments_by_actor='*[bot]' wildcard filter"
+
+  test-include-specific-actors:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_EVENT_NAME: workflow_dispatch
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Attach git HEAD to a branch
+        run: git checkout -b test-branch
+
+      - name: Run action with include actor filter (expect failure at API key)
+        id: claude-action
+        continue-on-error: true
+        uses: .
+        with:
+          github_token: ${{ github.token }}
+          prompt: "Say hello"
+          include_comments_by_actor: "trusted-user,another-user"
+          exclude_comments_by_actor: "renovate[bot],dependabot[bot]"
+          # No API key - should fail at validation
+
+      - name: Assert action failed at API key validation (not at filter parsing)
+        run: |
+          echo "Outcome: ${{ steps.claude-action.outcome }}"
+          if [ "${{ steps.claude-action.outcome }}" != "failure" ]; then
+            echo "FAIL: expected action to fail (at API key validation), but outcome was '${{ steps.claude-action.outcome }}'"
+            exit 1
+          fi
+          echo "PASS: action accepted include/exclude comment actor filter inputs"

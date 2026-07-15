@@ -1,0 +1,38 @@
+name: Test prompt without API key (expected failure)
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_EVENT_NAME: workflow_dispatch
+      GITHUB_REF: refs/heads/main
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Run action with prompt but no API key
+        id: action
+        uses: .
+        continue-on-error: true
+        with:
+          prompt: "Say hello"
+          github_token: ${{ github.token }}
+          # No anthropic_api_key provided — action should fail with auth error
+
+      - name: Assert action failed (expected — no API key)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # Without an API key, the action must fail (not succeed or be cancelled).
+          # This verifies the action correctly validates auth configuration.
+          if [ "$OUTCOME" = "success" ]; then
+            echo "FAIL: action succeeded without an API key — unexpected"
+            exit 1
+          fi
+          if [ "$OUTCOME" = "cancelled" ]; then
+            echo "FAIL: action was cancelled — unexpected"
+            exit 1
+          fi
+          echo "PASS: action failed as expected without API key (outcome=$OUTCOME)"

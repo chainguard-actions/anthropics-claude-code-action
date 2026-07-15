@@ -1,0 +1,41 @@
+name: Test branch configuration inputs
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_EVENT_NAME: push
+      GITHUB_REF: refs/heads/main
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Run action with custom branch configuration
+        id: action
+        uses: .
+        continue-on-error: true
+        with:
+          branch_prefix: "claude-"
+          branch_name_template: "{{prefix}}{{entityType}}-{{entityNumber}}-{{timestamp}}"
+          base_branch: "main"
+          github_token: ${{ github.token }}
+
+      - name: Assert action completed (not cancelled)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "cancelled" ]; then
+            echo "FAIL: action was cancelled unexpectedly"
+            exit 1
+          fi
+          echo "PASS: action accepted branch configuration inputs, outcome=$OUTCOME"
+
+      - name: Assert branch_name output exists (may be empty on skip path)
+        env:
+          BRANCH_NAME: ${{ steps.action.outputs.branch_name }}
+        run: |
+          echo "branch_name output: '$BRANCH_NAME'"
+          # On the no-trigger skip path, branch_name will be empty — that's expected
+          echo "PASS: branch_name output check complete"

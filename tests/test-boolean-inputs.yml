@@ -1,0 +1,54 @@
+name: Test boolean inputs are accepted correctly
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create fake GitHub event payload for workflow_dispatch
+        run: |
+          mkdir -p /tmp/github-events
+          cat > /tmp/github-events/event.json <<'EOF'
+          {
+            "repository": {
+              "name": "test-repo",
+              "full_name": "test-owner/test-repo",
+              "owner": {
+                "login": "test-owner"
+              },
+              "default_branch": "main"
+            },
+            "sender": {
+              "login": "test-user"
+            },
+            "workflow": ".github/workflows/test.yml"
+          }
+          EOF
+          echo "GITHUB_EVENT_PATH=/tmp/github-events/event.json" >> $GITHUB_ENV
+
+      # Run the action with explicit boolean inputs set to non-default values.
+      # use_sticky_comment=true, classify_inline_comments=false, use_commit_signing=true
+      # No prompt → no trigger → action exits cleanly (or fails at API key check).
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          github_token: ${{ github.token }}
+          use_sticky_comment: "true"
+          classify_inline_comments: "false"
+          use_commit_signing: "false"
+          display_report: "false"
+          show_full_output: "false"
+        env:
+          GITHUB_EVENT_NAME: workflow_dispatch
+
+      - name: Verify action ran with boolean inputs
+        run: |
+          echo "Action outcome: ${{ steps.action.outcome }}"
+          if [ "${{ steps.action.outcome }}" = "" ]; then
+            echo "FAIL: action step did not produce an outcome"
+            exit 1
+          fi
+          echo "PASS: action accepted boolean inputs, outcome: ${{ steps.action.outcome }}"

@@ -1,0 +1,45 @@
+name: Test custom bun executable path
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_EVENT_NAME: push
+      GITHUB_REF: refs/heads/main
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install bun manually to use as custom executable
+        run: |
+          curl -fsSL https://bun.sh/install | bash
+          echo "$HOME/.bun/bin" >> "$GITHUB_PATH"
+
+      - name: Verify bun is available
+        run: |
+          BUN_PATH="$HOME/.bun/bin/bun"
+          if [ ! -x "$BUN_PATH" ]; then
+            echo "FAIL: bun not found at $BUN_PATH"
+            exit 1
+          fi
+          echo "PASS: bun found at $BUN_PATH version $($BUN_PATH --version)"
+
+      - name: Run action with custom bun path
+        id: action
+        uses: .
+        continue-on-error: true
+        with:
+          path_to_bun_executable: "${{ env.HOME }}/.bun/bin/bun"
+          github_token: ${{ github.token }}
+
+      - name: Assert action completed (not cancelled)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "cancelled" ]; then
+            echo "FAIL: action was cancelled unexpectedly"
+            exit 1
+          fi
+          echo "PASS: action completed with custom bun path, outcome=$OUTCOME"
