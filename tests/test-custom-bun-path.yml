@@ -1,41 +1,48 @@
 name: Test custom bun executable path
 on:
   workflow_dispatch:
+
 jobs:
   test:
     runs-on: ubuntu-latest
-    env:
-      GITHUB_REF: refs/heads/main
-      GITHUB_EVENT_NAME: push
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Install bun manually for custom path test
-        id: install-bun
-        run: |
-          curl -fsSL https://bun.sh/install | bash
-          BUN_PATH="$HOME/.bun/bin/bun"
-          echo "path=$BUN_PATH" >> "$GITHUB_OUTPUT"
-          echo "Bun installed at: $BUN_PATH"
-          "$BUN_PATH" --version
-
-      - name: Run action with custom bun path (expect failure due to no API key)
-        id: action
-        uses: .
-        continue-on-error: true
+      # Install real bun first so the wrapper can delegate to it
+      - uses: oven-sh/setup-bun@3d267786b128fe76c2f16a390aa2448b815359f3 # https://github.com/oven-sh/setup-bun/releases/tag/v2.1.2
         with:
-          prompt: ""
-          path_to_bun_executable: ${{ steps.install-bun.outputs.path }}
+          bun-version: 1.3.6
 
-      - name: Assert action ran with custom bun path
+      # Create a wrapper bun executable that delegates to the real bun.
+      # This tests that the action correctly uses the custom path instead of
+      # installing bun itself (the "Install Bun" step is skipped when
+      # path_to_bun_executable is set).
+      - name: Create bun wrapper executable
         run: |
-          OUTCOME="${{ steps.action.outcome }}"
-          echo "action outcome: $OUTCOME"
-          # The action should either succeed (early exit) or fail (missing credentials).
-          # Either way, the custom bun path was used without crashing at bun setup.
-          if [ "$OUTCOME" = "success" ] || [ "$OUTCOME" = "failure" ]; then
-            echo "PASS: action ran using custom bun executable"
-          else
-            echo "FAIL: unexpected outcome: $OUTCOME"
-            exit 1
-          fi
+          mkdir -p /tmp/custom-bun-dir
+          # Find the real bun binary
+          REAL_BUN="$(which bun)"
+          echo "Real bun found at: $REAL_BUN"
+          cat > /tmp/custom-bun-dir/bun << EOF
+          #!/bin/sh
+          # Wrapper bun: delegates all commands to the real bun
+          exec "$REAL_BUN" "\$@"
+          EOF
+          chmod +x /tmp/custom-bun-dir/bun
+          echo "Wrapper bun created at /tmp/custom-bun-dir/bun"
+          /tmp/custom-bun-dir/bun --version
+
+      # Run the action with the custom bun path and no prompt (skip path).
+      # github_token is provided to bypass the OIDC token exchange with Anthropic.
+      - id: action
+        uses: .
+        with:
+          path_to_bun_executable: /tmp/custom-bun-dir/bun
+          trigger_phrase: "@claude"
+          github_token: ${{ github.token }}
+          # No prompt — action should skip gracefully after setup
+
+      - name: Assert action completed with custom bun path
+        run: |
+          echo "Action completed successfully using custom bun path"
+          echo "PASS"

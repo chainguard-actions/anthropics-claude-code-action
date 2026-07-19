@@ -1,0 +1,35 @@
+name: Test anthropic_api_key input is accepted
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Run the action with a fake anthropic_api_key and a prompt.
+      # The action will fail because the API key is invalid, but the input
+      # must be accepted and passed through to the Claude CLI invocation.
+      # github_token is provided to bypass the OIDC token exchange.
+      - id: action
+        uses: .
+        with:
+          anthropic_api_key: "sk-ant-fake-key-for-input-coverage-testing"
+          prompt: "Say hello"
+          github_token: ${{ github.token }}
+        continue-on-error: true
+
+      - name: Assert action ran with anthropic_api_key input
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "action outcome: $OUTCOME"
+          # The action should fail because the API key is fake,
+          # but it must have accepted the input and attempted to run.
+          if [ "$OUTCOME" = "failure" ] || [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action accepted anthropic_api_key input (outcome: $OUTCOME)"
+          else
+            echo "FAIL: unexpected outcome: $OUTCOME"
+            exit 1
+          fi

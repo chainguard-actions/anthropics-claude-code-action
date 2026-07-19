@@ -1,0 +1,33 @@
+name: Test input configuration (branch prefix, trigger phrase)
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Run the action with various inputs configured but no prompt.
+      # The action should accept all inputs, detect agent mode for workflow_dispatch,
+      # find no trigger (no prompt), and exit cleanly without needing an API key.
+      # github_token is provided to bypass the OIDC token exchange with Anthropic.
+      - id: action
+        uses: .
+        with:
+          trigger_phrase: "@mybot"
+          branch_prefix: "mybot/"
+          use_sticky_comment: "false"
+          use_commit_signing: "false"
+          bot_name: "mybot[bot]"
+          bot_id: "12345678"
+          include_fix_links: "true"
+          display_report: "false"
+          show_full_output: "false"
+          github_token: ${{ github.token }}
+          # No prompt — action should skip gracefully
+
+      - name: Assert action completed with custom inputs
+        run: |
+          echo "Action completed successfully with custom input configuration"
+          echo "PASS"

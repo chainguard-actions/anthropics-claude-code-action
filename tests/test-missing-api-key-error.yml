@@ -1,0 +1,32 @@
+name: Test missing API key validation error
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Run the action with a prompt but no API key.
+      # github_token is provided to bypass the OIDC token exchange with Anthropic.
+      # The action should fail at validateEnvironmentVariables() with a clear
+      # error message about missing ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN.
+      - id: action
+        uses: .
+        with:
+          prompt: "Say hello"
+          github_token: ${{ github.token }}
+          # Intentionally no anthropic_api_key — expect failure
+        continue-on-error: true
+
+      - name: Assert action failed with expected validation error
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "action outcome: $OUTCOME"
+          if [ "$OUTCOME" != "failure" ]; then
+            echo "FAIL: expected action to fail due to missing API key, but outcome was: $OUTCOME"
+            exit 1
+          fi
+          echo "PASS: action correctly failed when no API key was provided"

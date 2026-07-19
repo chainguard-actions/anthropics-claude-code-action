@@ -70,7 +70,9 @@ jobs:
 
       - name: Create test prompt file
         run: |
-          printf '%s\n' "$PROMPT" > test-prompt.txt
+          cat > test-prompt.txt << EOF
+          ${PROMPT}
+          EOF
         env:
           PROMPT: ${{ github.event.inputs.test_prompt || 'List the files in the current directory starting with "package"' }}
 
