@@ -1,0 +1,43 @@
+name: Test default input values (no trigger)
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        with:
+          # Use all defaults — no prompt, no API key
+          # Default trigger_phrase is "@claude", default branch_prefix is "claude/"
+          # With workflow_dispatch and no prompt, action should skip
+          github_token: ${{ github.token }}
+        continue-on-error: true
+
+      - name: Assert action skipped with default inputs
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          GITHUB_TOKEN_OUT: ${{ steps.action.outputs.github_token }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "github_token output present: $([ -n "$GITHUB_TOKEN_OUT" ] && echo yes || echo no)"
+          if [ "$OUTCOME" != "success" ]; then
+            echo "FAIL: expected action to succeed (skip) with default inputs, got outcome=$OUTCOME"
+            exit 1
+          fi
+          echo "PASS: action handled default inputs correctly and skipped (no trigger)"
+
+      - name: Assert branch_name output is empty (no branch created)
+        env:
+          BRANCH_NAME: ${{ steps.action.outputs.branch_name }}
+        run: |
+          echo "branch_name: '$BRANCH_NAME'"
+          # No branch should be created when action skips
+          if [ -n "$BRANCH_NAME" ]; then
+            echo "FAIL: expected no branch_name output when action skips, got: $BRANCH_NAME"
+            exit 1
+          fi
+          echo "PASS: branch_name is empty as expected when action skips"

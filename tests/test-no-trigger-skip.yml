@@ -1,0 +1,31 @@
+name: Test no-trigger skip (workflow_dispatch without prompt)
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        with:
+          # No prompt provided — action should detect no trigger and skip
+          trigger_phrase: "@claude"
+          github_token: ${{ github.token }}
+        continue-on-error: true
+
+      - name: Assert action skipped gracefully (no trigger)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          GITHUB_TOKEN_OUT: ${{ steps.action.outputs.github_token }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "github_token output set: $([ -n "$GITHUB_TOKEN_OUT" ] && echo yes || echo no)"
+          # The action should succeed (skip path) when no prompt/trigger is found
+          if [ "$OUTCOME" != "success" ]; then
+            echo "FAIL: expected action to succeed (skip) but got outcome=$OUTCOME"
+            exit 1
+          fi
+          echo "PASS: action skipped gracefully as expected"

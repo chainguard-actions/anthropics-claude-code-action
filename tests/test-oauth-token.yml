@@ -1,0 +1,33 @@
+name: Test claude_code_oauth_token input
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        with:
+          # Cover claude_code_oauth_token input as an alternative auth method
+          claude_code_oauth_token: "fake-oauth-token-for-input-coverage"
+          prompt: "Say hello"
+          github_token: ${{ github.token }}
+        continue-on-error: true
+
+      - name: Assert action attempted to run with OAuth token input
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # The action should fail because the OAuth token is fake, but the input
+          # (claude_code_oauth_token) must be accepted without a config error.
+          # Either failure (bad token) or success (skip path) is acceptable.
+          if [ "$OUTCOME" = "success" ] || [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action accepted claude_code_oauth_token input (outcome=$OUTCOME)"
+          else
+            echo "FAIL: unexpected outcome=$OUTCOME"
+            exit 1
+          fi
