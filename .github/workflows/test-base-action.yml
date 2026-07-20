@@ -75,10 +75,10 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Create test prompt file
-        run: |
-          printf '%s\n' "$PROMPT" > test-prompt.txt
         env:
           PROMPT: ${{ github.event.inputs.test_prompt || 'List the files in the current directory starting with "package"' }}
+        run: |
+          printf '%s\n' "$PROMPT" > test-prompt.txt
 
       - name: Test with prompt file and allowed tools
         id: prompt-file-test

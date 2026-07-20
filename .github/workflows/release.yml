@@ -44,9 +44,8 @@ jobs:
           if [ -z "$latest_tag" ]; then
             latest_tag="v0.0.0"
           fi
-          safe_tag=$(printf '%s' "$latest_tag" | tr -d '\n\r')
-          echo "latest_tag=$safe_tag" >> $GITHUB_OUTPUT
-          echo "Latest tag: $safe_tag"
+          echo "latest_tag=$latest_tag" >> $GITHUB_OUTPUT
+          echo "Latest tag: $latest_tag"
 
       - name: Calculate next version
         id: next_version
@@ -65,16 +64,15 @@ jobs:
           patch=$((patch + 1))
 
           next_version="v${major}.${minor}.${patch}"
-          safe_next=$(printf '%s' "$next_version" | tr -d '\n\r')
-          echo "next_version=$safe_next" >> $GITHUB_OUTPUT
-          echo "Next version: $safe_next"
+          echo "next_version=$next_version" >> $GITHUB_OUTPUT
+          echo "Next version: $next_version"
 
       - name: Display dry run info
         if: ${{ inputs.dry_run }}
         env:
           NEXT_VERSION: ${{ steps.next_version.outputs.next_version }}
-          COMMIT_SHA: ${{ github.sha }}
           LATEST_TAG: ${{ steps.get_latest_tag.outputs.latest_tag }}
+          COMMIT_SHA: ${{ github.sha }}
         run: |
           echo "🔍 DRY RUN MODE"
           echo "Would create tag: $NEXT_VERSION"
@@ -150,8 +148,10 @@ jobs:
   #         fetch-depth: 0
   #
   #     - name: Create and push tag
+  #       env:
+  #         NEXT_VERSION: ${{ needs.create-release.outputs.next_version }}
   #       run: |
-  #         next_version="${{ needs.create-release.outputs.next_version }}"
+  #         next_version="$NEXT_VERSION"
   #
   #         git config user.name "github-actions[bot]"
   #         git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -167,8 +167,9 @@ jobs:
   #     - name: Create GitHub release
   #       env:
   #         GH_TOKEN: ${{ secrets.CLAUDE_CODE_BASE_ACTION_PAT }}
+  #         NEXT_VERSION: ${{ needs.create-release.outputs.next_version }}
   #       run: |
-  #         next_version="${{ needs.create-release.outputs.next_version }}"
+  #         next_version="$NEXT_VERSION"
   #
   #         # Create the release
   #         gh release create "$next_version" \
