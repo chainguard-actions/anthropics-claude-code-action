@@ -1,0 +1,31 @@
+name: Test assignee_trigger and base_branch inputs accepted
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Run the action with assignee_trigger and base_branch inputs but no prompt.
+      # The action should skip gracefully since there is no trigger in this context.
+      - id: action
+        uses: .
+        with:
+          assignee_trigger: "claude"
+          base_branch: "main"
+          prompt: ""
+          github_token: ${{ github.token }}
+        continue-on-error: true
+
+      - name: Assert action did not crash on assignee_trigger and base_branch inputs
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "FAIL: action should have skipped gracefully with assignee_trigger and base_branch but failed"
+            exit 1
+          fi
+          echo "PASS: assignee_trigger and base_branch inputs accepted, action skipped gracefully (outcome=$OUTCOME)"

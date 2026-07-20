@@ -1,0 +1,34 @@
+name: Test outputs set on graceful skip
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # When no prompt is provided (no trigger), the action should still set
+      # the github_token output before returning.
+      - id: action
+        uses: .
+        with:
+          prompt: ""
+          github_token: ${{ github.token }}
+        continue-on-error: true
+
+      - name: Assert github_token output is set
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          TOKEN_OUT: ${{ steps.action.outputs.github_token }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "github_token output is set: $([ -n "$TOKEN_OUT" ] && echo yes || echo no)"
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "FAIL: action should not have failed"
+            exit 1
+          fi
+          if [ -z "$TOKEN_OUT" ]; then
+            echo "FAIL: expected github_token output to be set on graceful skip"
+            exit 1
+          fi
+          echo "PASS: github_token output is set after graceful skip"

@@ -1,35 +1,29 @@
-name: Test no-trigger skip (workflow_dispatch without prompt)
+name: Test no-trigger graceful skip
 on:
   workflow_dispatch:
-
 jobs:
   test:
     runs-on: ubuntu-latest
-    env:
-      GITHUB_EVENT_NAME: workflow_dispatch
-      GITHUB_REF: refs/heads/main
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
+      # Run the action with no prompt and no API key.
+      # For workflow_dispatch with no prompt, containsTrigger is false → action
+      # should skip gracefully (set github_token output and return, no error).
       - id: action
         uses: .
         with:
-          # No prompt provided — action should detect no trigger and skip
-          trigger_phrase: "@claude"
+          prompt: ""
           github_token: ${{ github.token }}
         continue-on-error: true
 
-      - name: Assert action skipped gracefully (no API key error)
+      - name: Assert action did not fail
         env:
           OUTCOME: ${{ steps.action.outcome }}
         run: |
           echo "outcome: $OUTCOME"
-          # The action should either succeed (skip path) or fail only due to
-          # missing API key — NOT due to a crash in the no-trigger path.
-          # We verify it did NOT crash with a non-zero exit before the skip check.
-          if [ "$OUTCOME" = "success" ]; then
-            echo "PASS: action completed successfully (no-trigger skip path)"
-          else
-            echo "INFO: action failed — checking if it was the expected API key error"
-            echo "PASS: action exited as expected without crashing on no-trigger path"
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "FAIL: action should have skipped gracefully but failed"
+            exit 1
           fi
+          echo "PASS: action skipped gracefully (outcome=$OUTCOME)"

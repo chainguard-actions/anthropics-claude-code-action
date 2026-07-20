@@ -32,7 +32,7 @@ jobs:
       next_version: ${{ steps.next_version.outputs.next_version }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 0
 
@@ -71,8 +71,8 @@ jobs:
         if: ${{ inputs.dry_run }}
         env:
           NEXT_VERSION: ${{ steps.next_version.outputs.next_version }}
-          LATEST_TAG: ${{ steps.get_latest_tag.outputs.latest_tag }}
           COMMIT_SHA: ${{ github.sha }}
+          LATEST_TAG: ${{ steps.get_latest_tag.outputs.latest_tag }}
         run: |
           echo "🔍 DRY RUN MODE"
           echo "Would create tag: $NEXT_VERSION"
@@ -114,7 +114,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 0
 
@@ -141,7 +141,7 @@ jobs:
   #   environment: production
   #   steps:
   #     - name: Checkout base-action repo
-  #       uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+  #       uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
   #       with:
   #         repository: anthropics/claude-code-base-action
   #         token: ${{ secrets.CLAUDE_CODE_BASE_ACTION_PAT }}

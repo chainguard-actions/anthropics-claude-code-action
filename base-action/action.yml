@@ -131,8 +131,8 @@ runs:
         echo "Using custom Bun executable: $PATH_TO_BUN_EXECUTABLE"
         # Add the directory containing the custom executable to PATH
         BUN_DIR=$(dirname "$PATH_TO_BUN_EXECUTABLE")
-        safe_bun_dir=$(printf '%s' "$BUN_DIR" | tr -d '\n\r')
-        echo "$safe_bun_dir" >> "$GITHUB_PATH"
+        printf '%s' "$BUN_DIR" | tr -d '\n\r' >> "$GITHUB_PATH"
+        echo >> "$GITHUB_PATH"
 
     - name: Install Dependencies
       shell: bash
@@ -148,16 +148,16 @@ runs:
         if [ -z "$PATH_TO_CLAUDE_CODE_EXECUTABLE" ]; then
           CLAUDE_CODE_VERSION="2.1.202"
           echo "Installing Claude Code v${CLAUDE_CODE_VERSION}..."
-          INSTALL_SCRIPT="$(mktemp)"
+          INSTALL_SCRIPT="$(mktemp /tmp/claude-install-XXXXXX.sh)"
           for attempt in 1 2 3; do
             echo "Installation attempt $attempt..."
             if command -v timeout &> /dev/null; then
               # Use --foreground to kill entire process group on timeout, --kill-after to send SIGKILL if SIGTERM fails
               timeout --foreground --kill-after=10 120 curl -fsSL -o "$INSTALL_SCRIPT" https://claude.ai/install.sh \
-                && bash "$INSTALL_SCRIPT" "$CLAUDE_CODE_VERSION" && break
+                && bash "$INSTALL_SCRIPT" -- "$CLAUDE_CODE_VERSION" && break
             else
               curl -fsSL -o "$INSTALL_SCRIPT" https://claude.ai/install.sh \
-                && bash "$INSTALL_SCRIPT" "$CLAUDE_CODE_VERSION" && break
+                && bash "$INSTALL_SCRIPT" -- "$CLAUDE_CODE_VERSION" && break
             fi
             if [ $attempt -eq 3 ]; then
               echo "Failed to install Claude Code after 3 attempts"
@@ -173,8 +173,8 @@ runs:
           echo "Using custom Claude Code executable: $PATH_TO_CLAUDE_CODE_EXECUTABLE"
           # Add the directory containing the custom executable to PATH
           CLAUDE_DIR=$(dirname "$PATH_TO_CLAUDE_CODE_EXECUTABLE")
-          safe_claude_dir=$(printf '%s' "$CLAUDE_DIR" | tr -d '\n\r')
-          echo "$safe_claude_dir" >> "$GITHUB_PATH"
+          printf '%s' "$CLAUDE_DIR" | tr -d '\n\r' >> "$GITHUB_PATH"
+          echo >> "$GITHUB_PATH"
         fi
 
     - name: Run Claude Code Action
