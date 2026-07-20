@@ -1,0 +1,47 @@
+name: Test default input values and graceful skip
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        # Use all default inputs — no prompt, no API key
+        # Default trigger_phrase is @claude, default branch_prefix is claude/
+        # On workflow_dispatch with no prompt, action should skip gracefully
+        with:
+          github_token: ${{ github.token }}
+          trigger_phrase: "@claude"
+          branch_prefix: "claude/"
+          use_sticky_comment: "false"
+          classify_inline_comments: "true"
+          use_commit_signing: "false"
+          include_fix_links: "true"
+          track_progress: "false"
+        continue-on-error: true
+
+      - name: Assert action skipped gracefully with default inputs
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "action outcome: $OUTCOME"
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "FAIL: action should have skipped gracefully with default inputs on workflow_dispatch"
+            exit 1
+          fi
+          echo "PASS: action skipped gracefully with default inputs"
+
+      - name: Assert branch_name output is empty (no branch created on skip)
+        env:
+          BRANCH: ${{ steps.action.outputs.branch_name }}
+        run: |
+          echo "branch_name output: '$BRANCH'"
+          if [ -n "$BRANCH" ]; then
+            echo "FAIL: expected no branch to be created when action skips"
+            exit 1
+          fi
+          echo "PASS: no branch created on skip"

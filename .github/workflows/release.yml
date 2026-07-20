@@ -64,21 +64,20 @@ jobs:
           patch=$((patch + 1))
 
           next_version="v${major}.${minor}.${patch}"
-          safe_next_version=$(printf '%s' "$next_version" | tr -d '\n\r')
-          echo "next_version=$safe_next_version" >> "$GITHUB_OUTPUT"
-          echo "Next version: $safe_next_version"
+          echo "next_version=$next_version" >> $GITHUB_OUTPUT
+          echo "Next version: $next_version"
 
       - name: Display dry run info
         if: ${{ inputs.dry_run }}
         env:
           NEXT_VERSION: ${{ steps.next_version.outputs.next_version }}
+          LATEST_TAG: ${{ steps.get_latest_tag.outputs.latest_tag }}
           COMMIT_SHA: ${{ github.sha }}
-          PREV_TAG: ${{ steps.get_latest_tag.outputs.latest_tag }}
         run: |
           echo "🔍 DRY RUN MODE"
           echo "Would create tag: $NEXT_VERSION"
           echo "From commit: $COMMIT_SHA"
-          echo "Previous tag: $PREV_TAG"
+          echo "Previous tag: $LATEST_TAG"
 
       - name: Create and push tag
         if: ${{ !inputs.dry_run }}

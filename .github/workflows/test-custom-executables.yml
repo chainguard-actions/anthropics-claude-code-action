@@ -23,6 +23,7 @@ jobs:
           echo "Installing Bun..."
           curl -fsSL -o /tmp/bun-install.sh https://bun.sh/install
           bash /tmp/bun-install.sh
+          rm -f /tmp/bun-install.sh
           echo "Bun installed at: $HOME/.bun/bin/bun"
 
           # Verify Bun installation
@@ -39,6 +40,7 @@ jobs:
           echo "Installing Claude Code..."
           curl -fsSL -o /tmp/claude-install.sh https://claude.ai/install.sh
           bash /tmp/claude-install.sh latest
+          rm -f /tmp/claude-install.sh
           echo "Claude Code installed at: $HOME/.local/bin/claude"
 
           # Verify Claude installation

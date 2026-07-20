@@ -151,17 +151,13 @@ runs:
           for attempt in 1 2 3; do
             echo "Installation attempt $attempt..."
             if command -v timeout &> /dev/null; then
-              # Download install script first, then execute with pinned version
               # Use --foreground to kill entire process group on timeout, --kill-after to send SIGKILL if SIGTERM fails
-              timeout --foreground --kill-after=10 120 bash -c "
-                curl -fsSL -o /tmp/claude-install.sh https://claude.ai/install.sh
-                bash /tmp/claude-install.sh -- \"$CLAUDE_CODE_VERSION\"
-                rm -f /tmp/claude-install.sh
-              " && break
+              timeout --foreground --kill-after=10 120 bash -c "curl -fsSL -o /tmp/claude-install.sh https://claude.ai/install.sh && bash /tmp/claude-install.sh -- $CLAUDE_CODE_VERSION && rm -f /tmp/claude-install.sh" && break
             else
               curl -fsSL -o /tmp/claude-install.sh https://claude.ai/install.sh
-              bash /tmp/claude-install.sh -- "$CLAUDE_CODE_VERSION" && break
+              bash /tmp/claude-install.sh -- "$CLAUDE_CODE_VERSION"
               rm -f /tmp/claude-install.sh
+              break
             fi
             if [ $attempt -eq 3 ]; then
               echo "Failed to install Claude Code after 3 attempts"
