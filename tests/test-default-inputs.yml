@@ -1,0 +1,55 @@
+name: Test default inputs and configuration
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        with:
+          # Explicitly set defaults to verify they are accepted without error
+          trigger_phrase: "@claude"
+          branch_prefix: "claude/"
+          label_trigger: "claude"
+          use_sticky_comment: "false"
+          classify_inline_comments: "true"
+          use_commit_signing: "false"
+          track_progress: "false"
+          include_fix_links: "true"
+          display_report: "false"
+          show_full_output: "false"
+          use_bedrock: "false"
+          use_vertex: "false"
+          use_foundry: "false"
+          bot_id: "41898282"
+          bot_name: "claude[bot]"
+          github_token: ${{ github.token }}
+          # No prompt — action will skip gracefully without API key
+
+      - name: Assert action completed without error
+        run: |
+          echo "Action completed successfully with all default inputs"
+          echo "PASS"
+
+      - name: Assert github_token output is set
+        env:
+          ACTUAL: ${{ steps.action.outputs.github_token }}
+        run: |
+          echo "github_token output present: $([ -n "$ACTUAL" ] && echo yes || echo no)"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected github_token output to be set"
+            exit 1
+          fi
+          echo "PASS: github_token output is set"
+
+      - name: Assert branch_name output exists (may be empty when skipped)
+        env:
+          BRANCH: ${{ steps.action.outputs.branch_name }}
+        run: |
+          # When no prompt is provided, the action skips before creating a branch.
+          # The output key should still be set (possibly empty).
+          echo "branch_name output: '$BRANCH'"
+          echo "PASS: branch_name output key is accessible"

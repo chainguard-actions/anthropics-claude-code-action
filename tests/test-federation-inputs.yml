@@ -1,0 +1,38 @@
+name: Test workload identity federation inputs coverage
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        with:
+          # Workload identity federation inputs — placeholder values; action skips
+          # gracefully without a real federation rule or OIDC token exchange
+          anthropic_federation_rule_id: "fdrl_placeholder"
+          anthropic_organization_id: "00000000-0000-0000-0000-000000000000"
+          anthropic_service_account_id: "svac_placeholder"
+          anthropic_workspace_id: "wrkspc_placeholder"
+          anthropic_oidc_audience: "https://api.anthropic.com"
+          # Provide github_token so the action can resolve a token
+          github_token: ${{ github.token }}
+          # No prompt — action will skip gracefully
+
+      - name: Assert action completed without error
+        run: |
+          echo "Action completed successfully with federation inputs"
+          echo "PASS"
+
+      - name: Assert github_token output is set
+        env:
+          ACTUAL: ${{ steps.action.outputs.github_token }}
+        run: |
+          echo "github_token output present: $([ -n "$ACTUAL" ] && echo yes || echo no)"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected github_token output to be set"
+            exit 1
+          fi
+          echo "PASS: github_token output is set"

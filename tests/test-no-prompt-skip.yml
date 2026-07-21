@@ -1,0 +1,31 @@
+name: Test no-prompt skip (workflow_dispatch without prompt)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        with:
+          # No prompt provided — the action should detect no trigger and skip
+          # gracefully without requiring an API key.
+          github_token: ${{ github.token }}
+
+      - name: Assert action completed without error
+        run: |
+          echo "Action completed successfully (no prompt = skip path)"
+          echo "PASS"
+
+      - name: Assert github_token output is set
+        env:
+          ACTUAL: ${{ steps.action.outputs.github_token }}
+        run: |
+          echo "github_token output present: $([ -n "$ACTUAL" ] && echo yes || echo no)"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected github_token output to be set"
+            exit 1
+          fi
+          echo "PASS: github_token output is set"
