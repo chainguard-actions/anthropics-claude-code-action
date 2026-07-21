@@ -1,0 +1,30 @@
+name: Test no-trigger skip (workflow_dispatch without prompt)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Run action without prompt (should skip gracefully)
+        id: action
+        uses: .
+        with:
+          # Provide github_token so the action uses it directly instead of
+          # trying to exchange an OIDC token (which requires id-token: write).
+          github_token: ${{ github.token }}
+          # No prompt provided — action detects agent mode, finds no trigger,
+          # logs "No trigger found, skipping remaining steps", and exits 0.
+        continue-on-error: true
+
+      - name: Assert action did not fail (no-trigger path exits 0)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "FAIL: action should have skipped gracefully but it failed"
+            exit 1
+          fi
+          echo "PASS: action skipped without error as expected"

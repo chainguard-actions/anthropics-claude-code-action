@@ -1,0 +1,38 @@
+name: Test auth inputs (anthropic_api_key, claude_code_oauth_token, assignee_trigger, base_branch)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Run action with auth inputs (no prompt, should skip gracefully)
+        id: action
+        uses: .
+        with:
+          # Provide github_token so the action uses it directly instead of
+          # trying to exchange an OIDC token (which requires id-token: write).
+          github_token: ${{ github.token }}
+          # Cover anthropic_api_key input with a placeholder (no prompt means
+          # the action will skip before actually calling the API)
+          anthropic_api_key: "placeholder-not-used"
+          # Cover claude_code_oauth_token input
+          claude_code_oauth_token: "placeholder-not-used"
+          # Cover assignee_trigger input
+          assignee_trigger: "claude"
+          # Cover base_branch input
+          base_branch: "main"
+          # No prompt — action will skip gracefully without needing real credentials
+        continue-on-error: true
+
+      - name: Assert action did not fail with auth inputs set
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "FAIL: action should have skipped gracefully with auth inputs set but no prompt"
+            exit 1
+          fi
+          echo "PASS: action accepted auth inputs and skipped without error"

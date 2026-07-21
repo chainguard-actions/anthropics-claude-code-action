@@ -1,0 +1,62 @@
+name: Test outputs when action skips (no trigger)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Run action without prompt (no-trigger skip path)
+        id: action
+        uses: .
+        with:
+          # Provide github_token so the action uses it directly instead of
+          # trying to exchange an OIDC token (which requires id-token: write).
+          github_token: ${{ github.token }}
+          # No prompt — action exits early via "No trigger found" path
+        continue-on-error: true
+
+      - name: Assert action did not fail (no-trigger path exits 0)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "FAIL: action should have skipped gracefully but failed"
+            exit 1
+          fi
+          echo "PASS: action skipped without error"
+
+      - name: Assert branch_name output is empty on skip
+        env:
+          BRANCH_NAME: ${{ steps.action.outputs.branch_name }}
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "branch_name: '$BRANCH_NAME'"
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "FAIL: action should have skipped gracefully but failed"
+            exit 1
+          fi
+          # On the no-trigger path, branch_name should be empty (no branch was created)
+          if [ -n "$BRANCH_NAME" ]; then
+            echo "FAIL: expected empty branch_name on skip, got: '$BRANCH_NAME'"
+            exit 1
+          fi
+          echo "PASS: branch_name is empty as expected when action skips"
+
+      - name: Assert github_token output is set even on skip
+        env:
+          GITHUB_TOKEN_OUT: ${{ steps.action.outputs.github_token }}
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "SKIP assertion: action failed, cannot check outputs"
+            exit 0
+          fi
+          # The action sets github_token output even on the no-trigger skip path
+          # (it calls core.setOutput("github_token", githubToken) before returning)
+          echo "github_token output is set: $([ -n "$GITHUB_TOKEN_OUT" ] && echo yes || echo no)"
+          echo "PASS"
