@@ -13,6 +13,7 @@ Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at
 | v1.0.169 | [`v1.0.169`](https://github.com/chainguard-actions/anthropics-claude-code-action/tree/v1.0.169) | [`37b464c`](https://github.com/anthropics/claude-code-action/commit/37b464ce72700f7b2c5ff8d2db7fa7b15df792f5) |
 | v1.0.177 | [`v1.0.177`](https://github.com/chainguard-actions/anthropics-claude-code-action/tree/v1.0.177) | [`3553f84`](https://github.com/anthropics/claude-code-action/commit/3553f84341b92da26052e28acf1aa898f9511f32) |
 | v1.0.178 | [`v1.0.178`](https://github.com/chainguard-actions/anthropics-claude-code-action/tree/v1.0.178) | [`af0559e`](https://github.com/anthropics/claude-code-action/commit/af0559ee4f514d1ef21826982bed13f7edc3c35e) |
+| v1.0.179 | [`v1.0.179`](https://github.com/chainguard-actions/anthropics-claude-code-action/tree/v1.0.179) | [`b76a077`](https://github.com/anthropics/claude-code-action/commit/b76a0776ae74036e77cd11018083743453d7ad35) |
 | v1.0.69 | [`v1.0.69`](https://github.com/chainguard-actions/anthropics-claude-code-action/tree/v1.0.69) | [`1fc90f3`](https://github.com/anthropics/claude-code-action/commit/1fc90f3ed982521116d8ff6d85b948c9b12cae3e) |
 
 ## Privacy
