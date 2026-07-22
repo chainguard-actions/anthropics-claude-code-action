@@ -1,0 +1,47 @@
+name: Test outputs on skip (no prompt)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        with:
+          github_token: ${{ github.token }}
+          # No prompt — action skips, no branch should be created
+
+      - name: Assert branch_name output is empty on skip
+        env:
+          BRANCH: ${{ steps.action.outputs.branch_name }}
+        run: |
+          echo "branch_name output: '$BRANCH'"
+          if [ -n "$BRANCH" ]; then
+            echo "FAIL: expected branch_name to be empty when action skips (no prompt)"
+            exit 1
+          fi
+          echo "PASS: branch_name is empty as expected when skipping"
+
+      - name: Assert execution_file output is empty on skip
+        env:
+          EXEC_FILE: ${{ steps.action.outputs.execution_file }}
+        run: |
+          echo "execution_file output: '$EXEC_FILE'"
+          if [ -n "$EXEC_FILE" ]; then
+            echo "FAIL: expected execution_file to be empty when action skips (no prompt)"
+            exit 1
+          fi
+          echo "PASS: execution_file is empty as expected when skipping"
+
+      - name: Assert github_token output is set even on skip
+        env:
+          TOKEN: ${{ steps.action.outputs.github_token }}
+        run: |
+          echo "github_token set: $([ -n "$TOKEN" ] && echo yes || echo no)"
+          if [ -z "$TOKEN" ]; then
+            echo "FAIL: expected github_token to be set even when action skips"
+            exit 1
+          fi
+          echo "PASS: github_token is set even on skip"

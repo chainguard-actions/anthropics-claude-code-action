@@ -1,0 +1,30 @@
+name: Test Bun setup and dependency installation
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        with:
+          github_token: ${{ github.token }}
+          # No prompt — action skips after installing bun and dependencies
+
+      - name: Assert bun is available after action runs
+        run: |
+          echo "Checking bun availability..."
+          if ! command -v bun >/dev/null 2>&1; then
+            echo "FAIL: bun not found in PATH after action ran"
+            exit 1
+          fi
+          BUN_VERSION=$(bun --version)
+          echo "bun version: $BUN_VERSION"
+          echo "PASS: bun is available"
+
+      - name: Assert action completed successfully
+        run: |
+          echo "Action completed (bun installed, deps installed, no trigger found)"
+          echo "PASS"

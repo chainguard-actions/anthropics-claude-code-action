@@ -1,0 +1,34 @@
+name: Test trigger and branch inputs accepted
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        with:
+          # Provide a real github_token so the action doesn't attempt OIDC exchange
+          github_token: ${{ github.token }}
+          # Trigger and branch inputs — provide values for coverage
+          assignee_trigger: "claude"
+          base_branch: "main"
+          # No prompt — action should detect no trigger and skip cleanly
+
+      - name: Assert action completed without error
+        run: |
+          echo "Action accepted trigger and branch inputs and completed without error"
+          echo "PASS"
+
+      - name: Assert github_token output is set
+        env:
+          ACTUAL: ${{ steps.action.outputs.github_token }}
+        run: |
+          echo "actual github_token length: ${#ACTUAL}"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected github_token output to be set"
+            exit 1
+          fi
+          echo "PASS: github_token output is set with trigger and branch inputs"

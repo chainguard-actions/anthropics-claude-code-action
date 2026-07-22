@@ -1,0 +1,40 @@
+name: Test custom inputs accepted
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        with:
+          # Provide a real github_token so the action doesn't attempt OIDC exchange
+          github_token: ${{ github.token }}
+          # Custom configuration inputs — no prompt so action skips cleanly
+          trigger_phrase: "@mybot"
+          label_trigger: "mybot"
+          branch_prefix: "mybot/"
+          use_sticky_comment: "false"
+          bot_name: "mybot[bot]"
+          bot_id: "12345678"
+          include_fix_links: "false"
+          classify_inline_comments: "false"
+          # No prompt — action should detect no trigger and skip
+
+      - name: Assert action completed without error
+        run: |
+          echo "Action accepted custom inputs and completed without error"
+          echo "PASS"
+
+      - name: Assert github_token output is set
+        env:
+          ACTUAL: ${{ steps.action.outputs.github_token }}
+        run: |
+          echo "actual github_token length: ${#ACTUAL}"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected github_token output to be set"
+            exit 1
+          fi
+          echo "PASS: github_token output is set with custom inputs"

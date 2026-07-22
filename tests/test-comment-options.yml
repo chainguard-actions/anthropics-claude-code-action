@@ -1,0 +1,35 @@
+name: Test comment and display options
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        with:
+          github_token: ${{ github.token }}
+          # Test sticky comment and display options
+          use_sticky_comment: "true"
+          classify_inline_comments: "false"
+          display_report: "false"
+          show_full_output: "false"
+          # No prompt — action skips cleanly
+
+      - name: Assert action completed without error
+        run: |
+          echo "Action accepted comment/display options and completed without error"
+          echo "PASS"
+
+      - name: Assert github_token output is set
+        env:
+          ACTUAL: ${{ steps.action.outputs.github_token }}
+        run: |
+          echo "actual github_token set: $([ -n "$ACTUAL" ] && echo yes || echo no)"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected github_token output to be set"
+            exit 1
+          fi
+          echo "PASS: github_token output is set"
