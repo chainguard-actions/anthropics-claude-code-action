@@ -1,0 +1,38 @@
+name: Test track_progress validation error on workflow_dispatch
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        with:
+          # Provide a real github_token so the action skips OIDC exchange
+          github_token: ${{ github.token }}
+          # track_progress is only valid for pull_request and issue events.
+          # Using it with workflow_dispatch should cause the action to fail
+          # with an error message about unsupported event type.
+          track_progress: "true"
+          prompt: "Hello"
+        continue-on-error: true
+
+      - name: Assert action failed due to track_progress validation
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "action outcome: $OUTCOME"
+          # The action should fail because track_progress is not supported
+          # for workflow_dispatch events. The detector.ts validateTrackProgressEvent
+          # function throws: "track_progress is only supported for events: ..."
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action correctly failed when track_progress used with workflow_dispatch"
+          elif [ "$OUTCOME" = "success" ]; then
+            echo "FAIL: action should have failed due to invalid track_progress usage"
+            exit 1
+          else
+            echo "FAIL: unexpected outcome: $OUTCOME"
+            exit 1
+          fi

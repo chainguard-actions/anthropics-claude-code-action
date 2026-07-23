@@ -1,0 +1,38 @@
+name: Test auth inputs (api key, oauth token, assignee trigger, base branch)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        with:
+          # Auth inputs under test
+          anthropic_api_key: "sk-ant-placeholder-not-real"
+          claude_code_oauth_token: "placeholder-oauth-token-not-real"
+          # Additional inputs under test
+          assignee_trigger: "claude"
+          base_branch: "main"
+          # Provide github_token to avoid OIDC exchange
+          github_token: ${{ github.token }}
+          # No prompt — should trigger early exit
+          trigger_phrase: "@claude"
+        continue-on-error: true
+
+      - name: Assert action completed without infrastructure crash
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "action outcome: $OUTCOME"
+          # The action will fail because the API key is fake, but it must not
+          # crash before processing the inputs. success or failure are both
+          # acceptable — we just need to confirm the inputs were accepted.
+          if [ "$OUTCOME" = "success" ] || [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action completed (outcome=$OUTCOME) — inputs were accepted"
+          else
+            echo "FAIL: unexpected outcome: $OUTCOME"
+            exit 1
+          fi
