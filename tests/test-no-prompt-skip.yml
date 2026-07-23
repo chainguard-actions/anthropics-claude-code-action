@@ -1,0 +1,42 @@
+name: Test no-prompt early exit (workflow_dispatch)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        with:
+          # Provide github_token so the action doesn't need OIDC
+          github_token: ${{ github.token }}
+          # No prompt provided — action should detect workflow_dispatch with no
+          # prompt, log "No trigger found", set github_token output, and return
+          # early without needing an Anthropic API key.
+
+      - name: Assert github_token output is set
+        env:
+          ACTUAL: ${{ steps.action.outputs.github_token }}
+        run: |
+          echo "github_token output length: ${#ACTUAL}"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected github_token output to be non-empty"
+            exit 1
+          fi
+          echo "PASS: github_token output is set"
+
+      - name: Assert branch_name output is empty (no Claude run occurred)
+        env:
+          ACTUAL: ${{ steps.action.outputs.branch_name }}
+        run: |
+          echo "branch_name output: '$ACTUAL'"
+          # When the action exits early (no trigger), no branch is created
+          if [ -n "$ACTUAL" ]; then
+            echo "FAIL: expected branch_name to be empty on early exit, got: $ACTUAL"
+            exit 1
+          fi
+          echo "PASS: branch_name is empty as expected"

@@ -41,9 +41,10 @@ jobs:
 
       - name: Verify outputs
         env:
-          OUTPUT: ${{ steps.test.outputs.structured_output }}
+          STRUCTURED_OUTPUT: ${{ steps.test.outputs.structured_output }}
         run: |
           # Parse the structured_output JSON
+          OUTPUT="$STRUCTURED_OUTPUT"
 
           # Test string pass-through
           TEXT_FIELD=$(echo "$OUTPUT" | jq -r '.text_field')
@@ -102,9 +103,10 @@ jobs:
 
       - name: Verify JSON stringification
         env:
-          OUTPUT: ${{ steps.test.outputs.structured_output }}
+          STRUCTURED_OUTPUT: ${{ steps.test.outputs.structured_output }}
         run: |
           # Parse the structured_output JSON
+          OUTPUT="$STRUCTURED_OUTPUT"
 
           # Arrays should be JSON stringified
           if ! echo "$OUTPUT" | jq -e '.items | length == 3' > /dev/null; then
@@ -157,9 +159,10 @@ jobs:
 
       - name: Verify edge cases
         env:
-          OUTPUT: ${{ steps.test.outputs.structured_output }}
+          STRUCTURED_OUTPUT: ${{ steps.test.outputs.structured_output }}
         run: |
           # Parse the structured_output JSON
+          OUTPUT="$STRUCTURED_OUTPUT"
 
           # Zero should be "0", not empty or falsy
           ZERO=$(echo "$OUTPUT" | jq -r '.zero')
@@ -214,9 +217,10 @@ jobs:
 
       - name: Verify sanitized names work
         env:
-          OUTPUT: ${{ steps.test.outputs.structured_output }}
+          STRUCTURED_OUTPUT: ${{ steps.test.outputs.structured_output }}
         run: |
           # Parse the structured_output JSON
+          OUTPUT="$STRUCTURED_OUTPUT"
 
           # Hyphens should be preserved in the JSON
           TEST_RESULT=$(echo "$OUTPUT" | jq -r '.["test-result"]')
@@ -305,18 +309,11 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Test | Result |" >> $GITHUB_STEP_SUMMARY
           echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
-
-          [ "$RESULT_BASIC_TYPES" = "success" ] && BASIC_LABEL="✅ PASS" || BASIC_LABEL="❌ FAIL"
-          [ "$RESULT_COMPLEX_TYPES" = "success" ] && COMPLEX_LABEL="✅ PASS" || COMPLEX_LABEL="❌ FAIL"
-          [ "$RESULT_EDGE_CASES" = "success" ] && EDGE_LABEL="✅ PASS" || EDGE_LABEL="❌ FAIL"
-          [ "$RESULT_NAME_SANITIZATION" = "success" ] && NAME_LABEL="✅ PASS" || NAME_LABEL="❌ FAIL"
-          [ "$RESULT_EXECUTION_FILE" = "success" ] && EXEC_LABEL="✅ PASS" || EXEC_LABEL="❌ FAIL"
-
-          echo "| Basic Types | $BASIC_LABEL |" >> $GITHUB_STEP_SUMMARY
-          echo "| Complex Types | $COMPLEX_LABEL |" >> $GITHUB_STEP_SUMMARY
-          echo "| Edge Cases | $EDGE_LABEL |" >> $GITHUB_STEP_SUMMARY
-          echo "| Name Sanitization | $NAME_LABEL |" >> $GITHUB_STEP_SUMMARY
-          echo "| Execution File | $EXEC_LABEL |" >> $GITHUB_STEP_SUMMARY
+          echo "| Basic Types | $([ "$RESULT_BASIC_TYPES" = "success" ] && echo "✅ PASS" || echo "❌ FAIL") |" >> $GITHUB_STEP_SUMMARY
+          echo "| Complex Types | $([ "$RESULT_COMPLEX_TYPES" = "success" ] && echo "✅ PASS" || echo "❌ FAIL") |" >> $GITHUB_STEP_SUMMARY
+          echo "| Edge Cases | $([ "$RESULT_EDGE_CASES" = "success" ] && echo "✅ PASS" || echo "❌ FAIL") |" >> $GITHUB_STEP_SUMMARY
+          echo "| Name Sanitization | $([ "$RESULT_NAME_SANITIZATION" = "success" ] && echo "✅ PASS" || echo "❌ FAIL") |" >> $GITHUB_STEP_SUMMARY
+          echo "| Execution File | $([ "$RESULT_EXECUTION_FILE" = "success" ] && echo "✅ PASS" || echo "❌ FAIL") |" >> $GITHUB_STEP_SUMMARY
 
           # Check if all passed
           if [ "$RESULT_BASIC_TYPES" = "success" ] && \
@@ -324,12 +321,6 @@ jobs:
              [ "$RESULT_EDGE_CASES" = "success" ] && \
              [ "$RESULT_NAME_SANITIZATION" = "success" ] && \
              [ "$RESULT_EXECUTION_FILE" = "success" ]; then
-            ALL_PASSED=true
-          else
-            ALL_PASSED=false
-          fi
-
-          if [ "$ALL_PASSED" = "true" ]; then
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "## ✅ All Tests Passed" >> $GITHUB_STEP_SUMMARY
           else

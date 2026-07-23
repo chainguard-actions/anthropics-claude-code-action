@@ -1,0 +1,44 @@
+name: Test boolean inputs (workflow_dispatch)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        with:
+          github_token: ${{ github.token }}
+          use_sticky_comment: "true"
+          classify_inline_comments: "false"
+          use_commit_signing: "false"
+          include_fix_links: "false"
+          display_report: "false"
+          show_full_output: "false"
+          # No prompt — action exits early after token setup
+
+      - name: Assert github_token output is set
+        env:
+          ACTUAL: ${{ steps.action.outputs.github_token }}
+        run: |
+          echo "github_token output length: ${#ACTUAL}"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected github_token output to be non-empty"
+            exit 1
+          fi
+          echo "PASS: github_token output is set with boolean inputs"
+
+      - name: Assert no branch was created (early exit)
+        env:
+          ACTUAL: ${{ steps.action.outputs.branch_name }}
+        run: |
+          echo "branch_name: '$ACTUAL'"
+          if [ -n "$ACTUAL" ]; then
+            echo "FAIL: expected no branch on early exit, got: $ACTUAL"
+            exit 1
+          fi
+          echo "PASS: no branch created on early exit"

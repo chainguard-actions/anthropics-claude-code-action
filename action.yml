@@ -213,8 +213,8 @@ runs:
         echo "Using custom Bun executable: $PATH_TO_BUN_EXECUTABLE"
         # Add the directory containing the custom executable to PATH
         BUN_DIR=$(dirname "$PATH_TO_BUN_EXECUTABLE")
-        printf '%s' "$BUN_DIR" | tr -d '\n\r' >> "$GITHUB_PATH"
-        echo >> "$GITHUB_PATH"
+        safe=$(printf '%s' "$BUN_DIR" | tr -d '\n\r')
+        echo "$safe" >> "$GITHUB_PATH"
     - name: Install Dependencies
       shell: bash
       run: |

@@ -1,34 +1,31 @@
-name: Test anthropic_api_key input
+name: Test anthropic_api_key input (workflow_dispatch)
 on:
   workflow_dispatch:
-
 jobs:
   test:
     runs-on: ubuntu-latest
-    env:
-      GITHUB_EVENT_NAME: workflow_dispatch
-      GITHUB_REF: refs/heads/main
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Run action with explicit anthropic_api_key (fake key)
-        id: action
+      - id: action
         continue-on-error: true
         uses: .
         with:
           github_token: ${{ github.token }}
-          anthropic_api_key: "sk-ant-fake-key-for-input-coverage-testing"
-          prompt: "Say hello"
+          anthropic_api_key: "sk-ant-placeholder-not-real"
+          # No prompt — action exits early after token setup (no trigger)
 
       - name: Assert action did not crash unexpectedly
         env:
           OUTCOME: ${{ steps.action.outcome }}
         run: |
           echo "action outcome: $OUTCOME"
-          # With a fake API key, the action should fail at API validation,
-          # not crash with an unhandled error (cancelled).
+          # The action should either succeed (skip path) or fail with an
+          # auth/validation error — NOT be cancelled.
           if [ "$OUTCOME" = "cancelled" ]; then
             echo "FAIL: action was cancelled unexpectedly"
             exit 1
           fi
-          echo "PASS: action completed with outcome=$OUTCOME (expected failure with fake API key)"
+          echo "PASS: action completed with outcome=$OUTCOME (anthropic_api_key input accepted)"

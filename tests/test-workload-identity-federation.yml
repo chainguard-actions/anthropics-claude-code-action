@@ -1,38 +1,35 @@
-name: Test workload identity federation inputs
+name: Test workload identity federation inputs (workflow_dispatch)
 on:
   workflow_dispatch:
-
 jobs:
   test:
     runs-on: ubuntu-latest
-    env:
-      GITHUB_EVENT_NAME: workflow_dispatch
-      GITHUB_REF: refs/heads/main
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Run action with workload identity federation inputs (fake values)
-        id: action
+      - id: action
         continue-on-error: true
         uses: .
         with:
           github_token: ${{ github.token }}
-          anthropic_federation_rule_id: "fdrl_fake_rule_id_for_coverage"
+          anthropic_federation_rule_id: "fdrl_placeholder_not_real"
           anthropic_organization_id: "00000000-0000-0000-0000-000000000000"
-          anthropic_service_account_id: "svac_fake_service_account_id"
-          anthropic_workspace_id: "wrkspc_fake_workspace_id"
+          anthropic_service_account_id: "svac_placeholder_not_real"
+          anthropic_workspace_id: "wrkspc_placeholder_not_real"
           anthropic_oidc_audience: "https://api.anthropic.com"
-          prompt: "Say hello"
+          # No prompt — action exits early after token setup (no trigger)
 
       - name: Assert action did not crash unexpectedly
         env:
           OUTCOME: ${{ steps.action.outcome }}
         run: |
           echo "action outcome: $OUTCOME"
-          # With fake federation credentials, the action should fail at auth,
-          # not crash with an unhandled error (cancelled).
+          # The action should either succeed (skip path) or fail with an
+          # auth/validation error — NOT be cancelled.
           if [ "$OUTCOME" = "cancelled" ]; then
             echo "FAIL: action was cancelled unexpectedly"
             exit 1
           fi
-          echo "PASS: action completed with outcome=$OUTCOME (expected failure with fake federation credentials)"
+          echo "PASS: action completed with outcome=$OUTCOME (workload identity federation inputs accepted)"

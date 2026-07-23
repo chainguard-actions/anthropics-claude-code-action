@@ -1,4 +1,4 @@
-name: Test custom bun executable path (workflow_dispatch)
+name: Test custom trigger_phrase input (workflow_dispatch)
 on:
   workflow_dispatch:
 jobs:
@@ -9,26 +9,12 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Install Bun manually
-        run: |
-          curl -fsSL https://bun.sh/install | bash
-          echo "$HOME/.bun/bin" >> "$GITHUB_PATH"
-
-      - name: Verify bun is available
-        run: |
-          BUN_PATH="$HOME/.bun/bin/bun"
-          if [ ! -x "$BUN_PATH" ]; then
-            echo "FAIL: bun not found at $BUN_PATH"
-            exit 1
-          fi
-          echo "bun version: $($BUN_PATH --version)"
-          echo "PASS: bun is available"
-
       - id: action
         uses: .
         with:
           github_token: ${{ github.token }}
-          path_to_bun_executable: ${{ env.HOME }}/.bun/bin/bun
+          trigger_phrase: "@mybot"
+          branch_prefix: "mybot/"
           # No prompt — action exits early after token setup
 
       - name: Assert github_token output is set
@@ -40,4 +26,15 @@ jobs:
             echo "FAIL: expected github_token output to be non-empty"
             exit 1
           fi
-          echo "PASS: github_token output is set when using custom bun path"
+          echo "PASS: github_token output is set with custom trigger_phrase"
+
+      - name: Assert no branch was created (early exit)
+        env:
+          ACTUAL: ${{ steps.action.outputs.branch_name }}
+        run: |
+          echo "branch_name: '$ACTUAL'"
+          if [ -n "$ACTUAL" ]; then
+            echo "FAIL: expected no branch on early exit, got: $ACTUAL"
+            exit 1
+          fi
+          echo "PASS: no branch created on early exit"

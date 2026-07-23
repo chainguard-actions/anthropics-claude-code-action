@@ -1,4 +1,4 @@
-name: Test claude_code_oauth_token input (workflow_dispatch)
+name: Test assignee_trigger and base_branch inputs (workflow_dispatch)
 on:
   workflow_dispatch:
 jobs:
@@ -14,7 +14,8 @@ jobs:
         uses: .
         with:
           github_token: ${{ github.token }}
-          claude_code_oauth_token: "placeholder-oauth-token-not-real"
+          assignee_trigger: "claude"
+          base_branch: "main"
           # No prompt — action exits early after token setup (no trigger)
 
       - name: Assert action did not crash unexpectedly
@@ -28,4 +29,15 @@ jobs:
             echo "FAIL: action was cancelled unexpectedly"
             exit 1
           fi
-          echo "PASS: action completed with outcome=$OUTCOME (claude_code_oauth_token input accepted)"
+          echo "PASS: action completed with outcome=$OUTCOME (assignee_trigger and base_branch inputs accepted)"
+
+      - name: Assert no branch was created (early exit, no trigger)
+        env:
+          ACTUAL: ${{ steps.action.outputs.branch_name }}
+        run: |
+          echo "branch_name: '$ACTUAL'"
+          if [ -n "$ACTUAL" ]; then
+            echo "FAIL: expected no branch on early exit, got: $ACTUAL"
+            exit 1
+          fi
+          echo "PASS: no branch created on early exit"

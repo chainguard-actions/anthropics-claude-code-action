@@ -131,8 +131,8 @@ runs:
         echo "Using custom Bun executable: $PATH_TO_BUN_EXECUTABLE"
         # Add the directory containing the custom executable to PATH
         BUN_DIR=$(dirname "$PATH_TO_BUN_EXECUTABLE")
-        printf '%s' "$BUN_DIR" | tr -d '\n\r' >> "$GITHUB_PATH"
-        echo >> "$GITHUB_PATH"
+        safe=$(printf '%s' "$BUN_DIR" | tr -d '\n\r')
+        echo "$safe" >> "$GITHUB_PATH"
 
     - name: Install Dependencies
       shell: bash
@@ -150,13 +150,14 @@ runs:
           echo "Installing Claude Code v${CLAUDE_CODE_VERSION}..."
           for attempt in 1 2 3; do
             echo "Installation attempt $attempt..."
+            INSTALL_SCRIPT=$(mktemp)
             if command -v timeout &> /dev/null; then
               # Use --foreground to kill entire process group on timeout, --kill-after to send SIGKILL if SIGTERM fails
-              timeout --foreground --kill-after=10 120 bash -c "curl -fsSL -o /tmp/claude-install.sh https://claude.ai/install.sh && bash /tmp/claude-install.sh -- $CLAUDE_CODE_VERSION" && break
+              timeout --foreground --kill-after=10 120 curl -fsSL https://claude.ai/install.sh -o "$INSTALL_SCRIPT" && bash "$INSTALL_SCRIPT" -- "$CLAUDE_CODE_VERSION" && rm -f "$INSTALL_SCRIPT" && break
             else
-              curl -fsSL -o /tmp/claude-install.sh https://claude.ai/install.sh
-              bash /tmp/claude-install.sh -- "$CLAUDE_CODE_VERSION" && break
+              curl -fsSL https://claude.ai/install.sh -o "$INSTALL_SCRIPT" && bash "$INSTALL_SCRIPT" -- "$CLAUDE_CODE_VERSION" && rm -f "$INSTALL_SCRIPT" && break
             fi
+            rm -f "$INSTALL_SCRIPT"
             if [ $attempt -eq 3 ]; then
               echo "Failed to install Claude Code after 3 attempts"
               exit 1
@@ -169,8 +170,8 @@ runs:
           echo "Using custom Claude Code executable: $PATH_TO_CLAUDE_CODE_EXECUTABLE"
           # Add the directory containing the custom executable to PATH
           CLAUDE_DIR=$(dirname "$PATH_TO_CLAUDE_CODE_EXECUTABLE")
-          printf '%s' "$CLAUDE_DIR" | tr -d '\n\r' >> "$GITHUB_PATH"
-          echo >> "$GITHUB_PATH"
+          safe=$(printf '%s' "$CLAUDE_DIR" | tr -d '\n\r')
+          echo "$safe" >> "$GITHUB_PATH"
         fi
 
     - name: Run Claude Code Action

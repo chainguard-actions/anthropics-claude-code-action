@@ -129,7 +129,6 @@ jobs:
           OUTPUT_FILE: ${{ steps.file-settings-test.outputs.execution_file }}
           CONCLUSION: ${{ steps.file-settings-test.outputs.conclusion }}
         run: |
-
           echo "Conclusion: $CONCLUSION"
 
           if [ "$CONCLUSION" = "success" ]; then
