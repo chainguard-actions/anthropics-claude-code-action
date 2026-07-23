@@ -41,8 +41,11 @@ jobs:
 
       - name: Verify outputs
         env:
-          OUTPUT: ${{ steps.test.outputs.structured_output }}
+          STRUCTURED_OUTPUT: ${{ steps.test.outputs.structured_output }}
         run: |
+          # Parse the structured_output JSON
+          OUTPUT="$STRUCTURED_OUTPUT"
+
           # Test string pass-through
           TEXT_FIELD=$(echo "$OUTPUT" | jq -r '.text_field')
           if [ "$TEXT_FIELD" != "hello" ]; then
@@ -100,8 +103,11 @@ jobs:
 
       - name: Verify JSON stringification
         env:
-          OUTPUT: ${{ steps.test.outputs.structured_output }}
+          STRUCTURED_OUTPUT: ${{ steps.test.outputs.structured_output }}
         run: |
+          # Parse the structured_output JSON
+          OUTPUT="$STRUCTURED_OUTPUT"
+
           # Arrays should be JSON stringified
           if ! echo "$OUTPUT" | jq -e '.items | length == 3' > /dev/null; then
             echo "❌ Array not properly formatted"
@@ -153,8 +159,11 @@ jobs:
 
       - name: Verify edge cases
         env:
-          OUTPUT: ${{ steps.test.outputs.structured_output }}
+          STRUCTURED_OUTPUT: ${{ steps.test.outputs.structured_output }}
         run: |
+          # Parse the structured_output JSON
+          OUTPUT="$STRUCTURED_OUTPUT"
+
           # Zero should be "0", not empty or falsy
           ZERO=$(echo "$OUTPUT" | jq -r '.zero')
           if [ "$ZERO" != "0" ]; then
@@ -208,8 +217,11 @@ jobs:
 
       - name: Verify sanitized names work
         env:
-          OUTPUT: ${{ steps.test.outputs.structured_output }}
+          STRUCTURED_OUTPUT: ${{ steps.test.outputs.structured_output }}
         run: |
+          # Parse the structured_output JSON
+          OUTPUT="$STRUCTURED_OUTPUT"
+
           # Hyphens should be preserved in the JSON
           TEST_RESULT=$(echo "$OUTPUT" | jq -r '.["test-result"]')
           if [ "$TEST_RESULT" != "passed" ]; then
@@ -247,8 +259,10 @@ jobs:
 
       - name: Verify execution file contains structured_output
         env:
-          FILE: ${{ steps.test.outputs.execution_file }}
+          EXECUTION_FILE: ${{ steps.test.outputs.execution_file }}
         run: |
+          FILE="$EXECUTION_FILE"
+
           # Check file exists
           if [ ! -f "$FILE" ]; then
             echo "❌ Execution file missing"
@@ -318,11 +332,16 @@ jobs:
           echo "| Execution File | $exec_icon |" >> $GITHUB_STEP_SUMMARY
 
           # Check if all passed
-          if [ "$BASIC_TYPES_RESULT" = "success" ] && \
-             [ "$COMPLEX_TYPES_RESULT" = "success" ] && \
-             [ "$EDGE_CASES_RESULT" = "success" ] && \
-             [ "$NAME_SANITIZATION_RESULT" = "success" ] && \
-             [ "$EXECUTION_FILE_RESULT" = "success" ]; then
+          ALL_PASSED=true
+          if [ "$BASIC_TYPES_RESULT" != "success" ] || \
+             [ "$COMPLEX_TYPES_RESULT" != "success" ] || \
+             [ "$EDGE_CASES_RESULT" != "success" ] || \
+             [ "$NAME_SANITIZATION_RESULT" != "success" ] || \
+             [ "$EXECUTION_FILE_RESULT" != "success" ]; then
+            ALL_PASSED=false
+          fi
+
+          if [ "$ALL_PASSED" = "true" ]; then
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "## ✅ All Tests Passed" >> $GITHUB_STEP_SUMMARY
           else

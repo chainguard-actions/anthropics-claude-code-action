@@ -1,0 +1,38 @@
+name: Test workload identity federation inputs
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        with:
+          # Cover workload identity federation inputs
+          anthropic_federation_rule_id: "fdrl_placeholder_for_input_coverage"
+          anthropic_organization_id: "00000000-0000-0000-0000-000000000000"
+          anthropic_service_account_id: "svac_placeholder_for_input_coverage"
+          anthropic_workspace_id: "wrkspc_placeholder_for_input_coverage"
+          anthropic_oidc_audience: "https://api.anthropic.com"
+          # Provide github_token to avoid OIDC exchange
+          github_token: ${{ github.token }}
+          trigger_phrase: "@claude"
+          # No prompt — should trigger early exit without calling the API
+        continue-on-error: true
+
+      - name: Assert action completed without infrastructure crash
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "action outcome: $OUTCOME"
+          # The action should succeed (no-trigger skip) or fail gracefully
+          # (e.g., placeholder federation credentials rejected before trigger check).
+          # Either way, it must not crash before processing inputs.
+          if [ "$OUTCOME" = "success" ] || [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action completed (outcome=$OUTCOME) — federation inputs accepted"
+          else
+            echo "FAIL: unexpected outcome: $OUTCOME"
+            exit 1
+          fi

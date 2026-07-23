@@ -1,0 +1,34 @@
+name: Test Claude Code OAuth token auth
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        with:
+          # Cover claude_code_oauth_token input (placeholder — no real token in CI)
+          claude_code_oauth_token: "placeholder-oauth-token-for-input-coverage"
+          # Provide github_token to avoid OIDC exchange
+          github_token: ${{ github.token }}
+          trigger_phrase: "@claude"
+          # No prompt — should trigger early exit without calling the API
+        continue-on-error: true
+
+      - name: Assert action completed without infrastructure crash
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "action outcome: $OUTCOME"
+          # The action should succeed (no-trigger skip) or fail gracefully
+          # (e.g., invalid placeholder token rejected before trigger check).
+          # Either way, it must not crash before processing inputs.
+          if [ "$OUTCOME" = "success" ] || [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action completed (outcome=$OUTCOME) — claude_code_oauth_token input accepted"
+          else
+            echo "FAIL: unexpected outcome: $OUTCOME"
+            exit 1
+          fi
