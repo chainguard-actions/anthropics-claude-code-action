@@ -1,0 +1,43 @@
+name: Test branch configuration inputs
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        with:
+          github_token: ${{ github.token }}
+          # Test branch configuration inputs are accepted
+          branch_prefix: "claude-"
+          branch_name_template: "{{prefix}}{{entityType}}-{{entityNumber}}-{{timestamp}}"
+          base_branch: "main"
+          trigger_phrase: "@claude"
+          label_trigger: "claude"
+          # No prompt → no trigger → action skips gracefully without needing API key
+
+      - name: Assert action completed successfully with branch config inputs
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "action outcome: $OUTCOME"
+          if [ "$OUTCOME" != "success" ]; then
+            echo "FAIL: expected action to succeed (skip gracefully) with branch config inputs, got: $OUTCOME"
+            exit 1
+          fi
+          echo "PASS: action handled branch configuration inputs correctly"
+
+      - name: Assert no branch was created (no trigger)
+        env:
+          BRANCH: ${{ steps.action.outputs.branch_name }}
+        run: |
+          echo "branch_name: '$BRANCH'"
+          # No trigger means no branch should be created
+          if [ -n "$BRANCH" ]; then
+            echo "FAIL: expected no branch to be created when no trigger, got: $BRANCH"
+            exit 1
+          fi
+          echo "PASS: no branch created as expected"

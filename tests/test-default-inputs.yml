@@ -1,0 +1,45 @@
+name: Test default inputs (no explicit inputs)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        with:
+          # Only provide github_token; all other inputs use defaults:
+          # trigger_phrase: "@claude"
+          # branch_prefix: "claude/"
+          # label_trigger: "claude"
+          # use_sticky_comment: "false"
+          # classify_inline_comments: "true"
+          # use_commit_signing: "false"
+          # bot_id: "41898282"
+          # bot_name: "claude[bot]"
+          # No prompt → no trigger → action skips gracefully
+          github_token: ${{ github.token }}
+
+      - name: Assert action completed successfully with defaults
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "action outcome: $OUTCOME"
+          if [ "$OUTCOME" != "success" ]; then
+            echo "FAIL: expected action to succeed (skip gracefully) with default inputs, got: $OUTCOME"
+            exit 1
+          fi
+          echo "PASS: action completed successfully with default inputs"
+
+      - name: Assert github_token output is populated
+        env:
+          ACTUAL: ${{ steps.action.outputs.github_token }}
+        run: |
+          echo "github_token length: ${#ACTUAL}"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected github_token output to be set even on skip"
+            exit 1
+          fi
+          echo "PASS: github_token output is set"

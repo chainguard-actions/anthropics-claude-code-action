@@ -1,0 +1,39 @@
+name: Test no-trigger skip (workflow_dispatch, no prompt)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        with:
+          # No prompt provided — action should detect agent mode, find no trigger,
+          # log "No trigger found, skipping remaining steps", and exit 0.
+          # No API key needed for this path.
+          github_token: ${{ github.token }}
+
+      - name: Assert github_token output is set
+        env:
+          ACTUAL: ${{ steps.action.outputs.github_token }}
+        run: |
+          echo "github_token output: ${#ACTUAL} chars"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected github_token output to be non-empty"
+            exit 1
+          fi
+          echo "PASS: github_token output is set"
+
+      - name: Assert branch_name output is empty (no branch created)
+        env:
+          ACTUAL: ${{ steps.action.outputs.branch_name }}
+        run: |
+          echo "branch_name output: '$ACTUAL'"
+          # When skipped, no branch is created so branch_name should be empty
+          if [ -n "$ACTUAL" ]; then
+            echo "FAIL: expected branch_name to be empty when skipped, got: $ACTUAL"
+            exit 1
+          fi
+          echo "PASS: branch_name is empty as expected"
