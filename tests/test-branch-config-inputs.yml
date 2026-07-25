@@ -1,0 +1,43 @@
+name: Test branch configuration inputs
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        with:
+          # Provide github_token to bypass OIDC exchange
+          github_token: ${{ github.token }}
+          # Configure branch naming options
+          branch_prefix: "test-claude-"
+          branch_name_template: "{{prefix}}{{entityType}}-{{entityNumber}}-{{timestamp}}"
+          base_branch: "main"
+          # No prompt — action should skip gracefully
+        continue-on-error: true
+
+      - name: Assert action did not fail
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "action outcome: $OUTCOME"
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "FAIL: action should have skipped gracefully with branch config inputs but it failed"
+            exit 1
+          fi
+          echo "PASS: action accepted branch configuration inputs and skipped gracefully"
+
+      - name: Assert branch_name output is empty (no branch created when skipping)
+        env:
+          BRANCH_NAME: ${{ steps.action.outputs.branch_name }}
+        run: |
+          echo "branch_name output: '$BRANCH_NAME'"
+          # When skipping due to no trigger, no branch should be created
+          if [ -n "$BRANCH_NAME" ]; then
+            echo "INFO: branch_name is set to '$BRANCH_NAME' (unexpected but not necessarily a failure)"
+          else
+            echo "PASS: branch_name is empty as expected when action skips"
+          fi

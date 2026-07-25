@@ -1,0 +1,30 @@
+name: Test missing API key error
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        with:
+          # Provide github_token to bypass OIDC exchange
+          github_token: ${{ github.token }}
+          # Provide a prompt so containsTrigger is true and we proceed past the skip
+          prompt: "Say hello"
+          # No anthropic_api_key, no claude_code_oauth_token, no bedrock/vertex/foundry
+          # Action should fail at validateEnvironmentVariables() with a clear error
+        continue-on-error: true
+
+      - name: Assert action failed due to missing API key
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "action outcome: $OUTCOME"
+          if [ "$OUTCOME" != "failure" ]; then
+            echo "FAIL: expected action to fail due to missing API key, but outcome was: $OUTCOME"
+            exit 1
+          fi
+          echo "PASS: action correctly failed when no API key was provided"
