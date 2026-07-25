@@ -1,0 +1,36 @@
+name: Test no-trigger skip (workflow_dispatch without prompt)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        with:
+          # No prompt provided — action should detect no trigger and exit cleanly
+          github_token: ${{ github.token }}
+          trigger_phrase: "@claude"
+
+      - name: Assert action skipped cleanly (no execution_file output)
+        env:
+          EXECUTION_FILE: ${{ steps.action.outputs.execution_file }}
+          BRANCH_NAME: ${{ steps.action.outputs.branch_name }}
+        run: |
+          echo "execution_file: '$EXECUTION_FILE'"
+          echo "branch_name: '$BRANCH_NAME'"
+          # When no trigger is found, the action exits early without creating
+          # an execution file or branch. Both outputs should be empty.
+          if [ -n "$EXECUTION_FILE" ]; then
+            echo "FAIL: expected empty execution_file but got: $EXECUTION_FILE"
+            exit 1
+          fi
+          if [ -n "$BRANCH_NAME" ]; then
+            echo "FAIL: expected empty branch_name but got: $BRANCH_NAME"
+            exit 1
+          fi
+          echo "PASS: action skipped cleanly as expected"

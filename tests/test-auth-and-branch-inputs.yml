@@ -1,0 +1,33 @@
+name: Test auth and branch inputs accepted
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        with:
+          # No prompt — action will skip cleanly, but all inputs should be accepted
+          github_token: ${{ github.token }}
+          anthropic_api_key: "sk-ant-placeholder-not-used-no-prompt"
+          claude_code_oauth_token: "placeholder-oauth-token-not-used-no-prompt"
+          assignee_trigger: "claude"
+          base_branch: "main"
+          trigger_phrase: "@claude"
+
+      - name: Assert action accepted auth and branch inputs and skipped cleanly
+        env:
+          EXECUTION_FILE: ${{ steps.action.outputs.execution_file }}
+        run: |
+          echo "execution_file: '$EXECUTION_FILE'"
+          # No trigger → no execution file should be produced
+          if [ -n "$EXECUTION_FILE" ]; then
+            echo "FAIL: expected empty execution_file but got: $EXECUTION_FILE"
+            exit 1
+          fi
+          echo "PASS: action accepted anthropic_api_key, claude_code_oauth_token, assignee_trigger, base_branch and skipped cleanly"
