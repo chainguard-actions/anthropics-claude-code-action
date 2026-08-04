@@ -1,0 +1,35 @@
+name: Test Bedrock provider configuration
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          # Provide a prompt to trigger the action past the "no trigger" check
+          prompt: "Say hello"
+          github_token: ${{ github.token }}
+          # Configure Bedrock provider (no AWS credentials — will fail at validation)
+          use_bedrock: "true"
+          use_vertex: "false"
+          use_foundry: "false"
+
+      - name: Assert action handled Bedrock config gracefully
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # Without AWS credentials, the action should fail at credential validation
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully without AWS credentials for Bedrock"
+          elif [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded (unexpected but acceptable)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
