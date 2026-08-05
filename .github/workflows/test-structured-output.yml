@@ -43,6 +43,8 @@ jobs:
         env:
           OUTPUT: ${{ steps.test.outputs.structured_output }}
         run: |
+          # Parse the structured_output JSON
+
           # Test string pass-through
           TEXT_FIELD=$(echo "$OUTPUT" | jq -r '.text_field')
           if [ "$TEXT_FIELD" != "hello" ]; then
@@ -102,6 +104,8 @@ jobs:
         env:
           OUTPUT: ${{ steps.test.outputs.structured_output }}
         run: |
+          # Parse the structured_output JSON
+
           # Arrays should be JSON stringified
           if ! echo "$OUTPUT" | jq -e '.items | length == 3' > /dev/null; then
             echo "❌ Array not properly formatted"
@@ -155,6 +159,8 @@ jobs:
         env:
           OUTPUT: ${{ steps.test.outputs.structured_output }}
         run: |
+          # Parse the structured_output JSON
+
           # Zero should be "0", not empty or falsy
           ZERO=$(echo "$OUTPUT" | jq -r '.zero')
           if [ "$ZERO" != "0" ]; then
@@ -210,6 +216,8 @@ jobs:
         env:
           OUTPUT: ${{ steps.test.outputs.structured_output }}
         run: |
+          # Parse the structured_output JSON
+
           # Hyphens should be preserved in the JSON
           TEST_RESULT=$(echo "$OUTPUT" | jq -r '.["test-result"]')
           if [ "$TEST_RESULT" != "passed" ]; then
@@ -287,14 +295,10 @@ jobs:
           RESULT_BASIC: ${{ needs.test-basic-types.result }}
           RESULT_COMPLEX: ${{ needs.test-complex-types.result }}
           RESULT_EDGE: ${{ needs.test-edge-cases.result }}
-          RESULT_NAMES: ${{ needs.test-name-sanitization.result }}
+          RESULT_NAME: ${{ needs.test-name-sanitization.result }}
           RESULT_FILE: ${{ needs.test-execution-file-structure.result }}
         run: |
-          basic_icon=$([ "$RESULT_BASIC" = "success" ] && echo "✅ PASS" || echo "❌ FAIL")
-          complex_icon=$([ "$RESULT_COMPLEX" = "success" ] && echo "✅ PASS" || echo "❌ FAIL")
-          edge_icon=$([ "$RESULT_EDGE" = "success" ] && echo "✅ PASS" || echo "❌ FAIL")
-          names_icon=$([ "$RESULT_NAMES" = "success" ] && echo "✅ PASS" || echo "❌ FAIL")
-          file_icon=$([ "$RESULT_FILE" = "success" ] && echo "✅ PASS" || echo "❌ FAIL")
+          pass_icon() { [ "$1" = "success" ] && echo "✅ PASS" || echo "❌ FAIL"; }
 
           echo "# Structured Output Tests (Optimized)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -302,18 +306,24 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Test | Result |" >> $GITHUB_STEP_SUMMARY
           echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Basic Types | $basic_icon |" >> $GITHUB_STEP_SUMMARY
-          echo "| Complex Types | $complex_icon |" >> $GITHUB_STEP_SUMMARY
-          echo "| Edge Cases | $edge_icon |" >> $GITHUB_STEP_SUMMARY
-          echo "| Name Sanitization | $names_icon |" >> $GITHUB_STEP_SUMMARY
-          echo "| Execution File | $file_icon |" >> $GITHUB_STEP_SUMMARY
+          echo "| Basic Types | $(pass_icon "$RESULT_BASIC") |" >> $GITHUB_STEP_SUMMARY
+          echo "| Complex Types | $(pass_icon "$RESULT_COMPLEX") |" >> $GITHUB_STEP_SUMMARY
+          echo "| Edge Cases | $(pass_icon "$RESULT_EDGE") |" >> $GITHUB_STEP_SUMMARY
+          echo "| Name Sanitization | $(pass_icon "$RESULT_NAME") |" >> $GITHUB_STEP_SUMMARY
+          echo "| Execution File | $(pass_icon "$RESULT_FILE") |" >> $GITHUB_STEP_SUMMARY
 
           # Check if all passed
           if [ "$RESULT_BASIC" = "success" ] && \
              [ "$RESULT_COMPLEX" = "success" ] && \
              [ "$RESULT_EDGE" = "success" ] && \
-             [ "$RESULT_NAMES" = "success" ] && \
+             [ "$RESULT_NAME" = "success" ] && \
              [ "$RESULT_FILE" = "success" ]; then
+            ALL_PASSED=true
+          else
+            ALL_PASSED=false
+          fi
+
+          if [ "$ALL_PASSED" = "true" ]; then
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "## ✅ All Tests Passed" >> $GITHUB_STEP_SUMMARY
           else

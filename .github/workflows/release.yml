@@ -44,8 +44,9 @@ jobs:
           if [ -z "$latest_tag" ]; then
             latest_tag="v0.0.0"
           fi
-          echo "latest_tag=$latest_tag" >> $GITHUB_OUTPUT
-          echo "Latest tag: $latest_tag"
+          safe_tag=$(printf '%s' "$latest_tag" | tr -d '\n\r')
+          echo "latest_tag=$safe_tag" >> "$GITHUB_OUTPUT"
+          echo "Latest tag: $safe_tag"
 
       - name: Calculate next version
         id: next_version
@@ -64,16 +65,16 @@ jobs:
           patch=$((patch + 1))
 
           next_version="v${major}.${minor}.${patch}"
-          safe_next_version=$(printf '%s' "$next_version" | tr -d '\n\r')
-          echo "next_version=$safe_next_version" >> "$GITHUB_OUTPUT"
-          echo "Next version: $safe_next_version"
+          safe_next=$(printf '%s' "$next_version" | tr -d '\n\r')
+          echo "next_version=$safe_next" >> "$GITHUB_OUTPUT"
+          echo "Next version: $safe_next"
 
       - name: Display dry run info
         if: ${{ inputs.dry_run }}
         env:
           NEXT_VERSION: ${{ steps.next_version.outputs.next_version }}
-          COMMIT_SHA: ${{ github.sha }}
           LATEST_TAG: ${{ steps.get_latest_tag.outputs.latest_tag }}
+          COMMIT_SHA: ${{ github.sha }}
         run: |
           echo "🔍 DRY RUN MODE"
           echo "Would create tag: $NEXT_VERSION"
