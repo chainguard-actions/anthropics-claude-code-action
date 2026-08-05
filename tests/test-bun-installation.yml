@@ -1,0 +1,45 @@
+name: Test - Bun Installation
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Verify Bun is not pre-installed
+        run: |
+          if command -v bun > /dev/null 2>&1; then
+            echo "Bun already installed: $(bun --version)"
+          else
+            echo "Bun not pre-installed (expected)"
+          fi
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          prompt: "echo hello"
+          # No API key — action will fail, but Bun should be installed first
+
+      - name: Assert Bun was installed by the action
+        run: |
+          echo "Checking if Bun is available after action ran..."
+          if command -v bun > /dev/null 2>&1; then
+            BUN_VERSION=$(bun --version)
+            echo "PASS: Bun is installed, version: $BUN_VERSION"
+          else
+            echo "FAIL: Bun was not installed by the action"
+            exit 1
+          fi
+
+      - name: Assert action outcome is not skipped
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "skipped" ]; then
+            echo "FAIL: action was skipped unexpectedly"
+            exit 1
+          fi
+          echo "PASS: action ran (outcome: $OUTCOME)"

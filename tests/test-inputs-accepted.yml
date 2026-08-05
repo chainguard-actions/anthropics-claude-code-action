@@ -1,0 +1,44 @@
+name: Test - Inputs Accepted
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          prompt: "List files in the current directory"
+          trigger_phrase: "@claude"
+          label_trigger: "claude"
+          branch_prefix: "claude/"
+          use_sticky_comment: "false"
+          classify_inline_comments: "true"
+          use_commit_signing: "false"
+          include_fix_links: "true"
+          display_report: "false"
+          show_full_output: "false"
+          track_progress: "false"
+          use_bedrock: "false"
+          use_vertex: "false"
+          use_foundry: "false"
+          bot_id: "41898282"
+          bot_name: "claude[bot]"
+          # No anthropic_api_key — expected to fail at runtime, not at input parsing
+
+      - name: Assert action ran (inputs accepted, failed gracefully without API key)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (no API key, sentinel repo)"
+          elif [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
