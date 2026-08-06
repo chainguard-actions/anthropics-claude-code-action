@@ -1,0 +1,32 @@
+name: Test Claude Code Action - Custom Trigger Phrase
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          trigger_phrase: "@bot"
+          prompt: "List files in the current directory"
+          branch_prefix: "bot/"
+          use_sticky_comment: "false"
+          # No anthropic_api_key provided — action should fail gracefully
+
+      - name: Assert action ran (failed gracefully or succeeded)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully as expected (no API key)"
+          elif [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

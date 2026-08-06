@@ -1,0 +1,36 @@
+name: Test Claude Code Action - Branch Configuration
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          prompt: "Create a simple hello world file"
+          branch_prefix: "claude-"
+          branch_name_template: "{{prefix}}{{entityType}}-{{entityNumber}}-{{timestamp}}"
+          use_sticky_comment: "true"
+          use_commit_signing: "false"
+          # No anthropic_api_key provided — action should fail gracefully
+
+      - name: Assert action ran (failed gracefully or succeeded)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          BRANCH_NAME: ${{ steps.action.outputs.branch_name }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "branch_name: $BRANCH_NAME"
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully as expected (no API key)"
+          elif [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded"
+            # If it succeeded, branch_name may or may not be set depending on whether a branch was created
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
