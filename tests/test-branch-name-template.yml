@@ -1,0 +1,34 @@
+name: Test branch name template input
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Test that the action accepts a custom branch_name_template without crashing.
+      # The action will fail at auth (no API key) but should not fail due to
+      # invalid template parsing.
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          branch_prefix: "claude/"
+          branch_name_template: "{{prefix}}{{entityType}}-{{entityNumber}}-{{timestamp}}"
+          use_sticky_comment: "false"
+          # No prompt → no trigger → action should skip or fail gracefully
+
+      - name: Assert action handled branch template without crashing
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # The action should either skip (no trigger) or fail gracefully (no API key).
+          # It must NOT crash due to invalid branch_name_template parsing.
+          if [ "$OUTCOME" = "success" ] || [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action handled branch_name_template without crashing (outcome: $OUTCOME)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

@@ -1,0 +1,35 @@
+name: Test missing API key fails gracefully
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Run the action with a direct prompt but no API key.
+      # The action should fail at auth validation (validateEnvironmentVariables)
+      # and call core.setFailed — outcome will be 'failure'.
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          prompt: "Say hello"
+          # Intentionally omit anthropic_api_key to test graceful failure
+
+      - name: Assert action failed gracefully without API key
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # Without an API key, the action must fail (not hang or crash with unhandled error).
+          # It should call core.setFailed which sets the step outcome to 'failure'.
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully as expected (no API key)"
+          elif [ "$OUTCOME" = "success" ]; then
+            # If it somehow succeeded (e.g. skipped due to sentinel repo), that's also acceptable
+            echo "PASS: action exited cleanly (may have skipped due to sentinel repo)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

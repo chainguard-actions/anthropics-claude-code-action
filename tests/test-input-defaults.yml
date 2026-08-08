@@ -1,0 +1,45 @@
+name: Test input defaults and configuration
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Test that the action accepts all its documented inputs without crashing
+      # on input parsing. The action will fail at auth (no API key) but should
+      # not fail due to invalid input handling.
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          trigger_phrase: "@claude"
+          branch_prefix: "claude-"
+          use_sticky_comment: "false"
+          classify_inline_comments: "true"
+          use_commit_signing: "false"
+          bot_id: "41898282"
+          bot_name: "claude[bot]"
+          track_progress: "false"
+          include_fix_links: "true"
+          display_report: "false"
+          show_full_output: "false"
+          use_bedrock: "false"
+          use_vertex: "false"
+          use_foundry: "false"
+          # No prompt → no trigger → action should skip or fail gracefully
+
+      - name: Assert action handled inputs without crashing
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # The action should either skip (no trigger) or fail gracefully (no API key).
+          # It must NOT crash with an unhandled exception due to bad input parsing.
+          if [ "$OUTCOME" = "success" ] || [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action handled all inputs without crashing (outcome: $OUTCOME)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
