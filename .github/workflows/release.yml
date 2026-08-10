@@ -148,6 +148,8 @@ jobs:
   #         fetch-depth: 0
   #
   #     - name: Create and push tag
+  #       env:
+  #         NEXT_VERSION: ${{ needs.create-release.outputs.next_version }}
   #       run: |
   #         next_version="$NEXT_VERSION"
   #
@@ -165,6 +167,7 @@ jobs:
   #     - name: Create GitHub release
   #       env:
   #         GH_TOKEN: ${{ secrets.CLAUDE_CODE_BASE_ACTION_PAT }}
+  #         NEXT_VERSION: ${{ needs.create-release.outputs.next_version }}
   #       run: |
   #         next_version="$NEXT_VERSION"
   #

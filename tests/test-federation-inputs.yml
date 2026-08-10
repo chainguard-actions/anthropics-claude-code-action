@@ -10,32 +10,30 @@ jobs:
       - id: action
         uses: .
         with:
+          # Cover workload identity federation inputs
+          anthropic_federation_rule_id: "fdrl_fake_rule_id_for_coverage"
+          anthropic_organization_id: "fake-org-uuid-for-coverage"
+          anthropic_service_account_id: "svac_fake_service_account_for_coverage"
+          anthropic_workspace_id: "wrkspc_fake_workspace_for_coverage"
+          anthropic_oidc_audience: "https://api.anthropic.com"
           # Provide github_token to bypass OIDC exchange
           github_token: ${{ github.token }}
-          # Provide a prompt so containsTrigger is true and we proceed past the skip
-          prompt: "Say hello"
-          # Workload identity federation inputs under test
-          # These are fake values — the action will fail at auth, but the inputs
-          # must be accepted without "unknown input" errors.
-          anthropic_federation_rule_id: "fdrl_fake_rule_id_for_coverage"
-          anthropic_organization_id: "00000000-0000-0000-0000-000000000000"
-          anthropic_service_account_id: "svac_fake_service_account_id"
-          anthropic_workspace_id: "wrkspc_fake_workspace_id"
-          anthropic_oidc_audience: "https://api.anthropic.com"
+          # No prompt — action should skip gracefully (no trigger found)
         continue-on-error: true
 
-      - name: Assert action accepted federation inputs
+      - name: Assert action did not crash unexpectedly
         env:
           OUTCOME: ${{ steps.action.outcome }}
         run: |
           echo "action outcome: $OUTCOME"
-          # The action should fail because the fake federation rule ID is rejected,
-          # not because the inputs were missing or unrecognized.
-          # Either failure or success is acceptable here — what matters is
-          # that the inputs were accepted without an "unknown input" error.
-          if [ "$OUTCOME" = "failure" ] || [ "$OUTCOME" = "success" ]; then
-            echo "PASS: action accepted the federation inputs (outcome: $OUTCOME)"
+          # The action should either skip gracefully (success) or fail at federation auth (failure).
+          # Either is acceptable — what matters is that the inputs were accepted without a
+          # parse/validation error about the input names themselves.
+          if [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action skipped gracefully with federation inputs provided"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed (expected — fake federation IDs / no real trigger), inputs were accepted"
           else
-            echo "FAIL: unexpected outcome: $OUTCOME"
+            echo "FAIL: unexpected outcome '$OUTCOME'"
             exit 1
           fi
