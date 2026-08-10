@@ -71,12 +71,12 @@ jobs:
         if: ${{ inputs.dry_run }}
         env:
           NEXT_VERSION: ${{ steps.next_version.outputs.next_version }}
-          GIT_SHA: ${{ github.sha }}
           LATEST_TAG: ${{ steps.get_latest_tag.outputs.latest_tag }}
+          GH_SHA: ${{ github.sha }}
         run: |
           echo "🔍 DRY RUN MODE"
           echo "Would create tag: $NEXT_VERSION"
-          echo "From commit: $GIT_SHA"
+          echo "From commit: $GH_SHA"
           echo "Previous tag: $LATEST_TAG"
 
       - name: Create and push tag
