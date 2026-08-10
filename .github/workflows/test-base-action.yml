@@ -38,6 +38,7 @@ jobs:
           OUTPUT_FILE: ${{ steps.inline-test.outputs.execution_file }}
           CONCLUSION: ${{ steps.inline-test.outputs.conclusion }}
         run: |
+
           echo "Conclusion: $CONCLUSION"
           echo "Output file: $OUTPUT_FILE"
 
@@ -78,10 +79,6 @@ jobs:
         env:
           PROMPT: ${{ github.event.inputs.test_prompt || 'List the files in the current directory starting with "package"' }}
         run: |
-          cat > test-prompt.txt << 'EOF'
-          ${PROMPT_PLACEHOLDER}
-          EOF
-          # Replace placeholder with actual prompt value
           printf '%s\n' "$PROMPT" > test-prompt.txt
 
       - name: Test with prompt file and allowed tools
@@ -99,6 +96,7 @@ jobs:
           OUTPUT_FILE: ${{ steps.prompt-file-test.outputs.execution_file }}
           CONCLUSION: ${{ steps.prompt-file-test.outputs.conclusion }}
         run: |
+
           echo "Conclusion: $CONCLUSION"
           echo "Output file: $OUTPUT_FILE"
 

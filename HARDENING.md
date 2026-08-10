@@ -10,58 +10,51 @@
 
 **Harden Agent Version:** `2`
 
-Action **anthropics--claude-code-action/v1.0.185** was hardened automatically. 6 finding(s) were identified and resolved across 3 iteration(s).
+Action **anthropics--claude-code-action/v1.0.185** was hardened automatically. 5 finding(s) were identified and resolved across 3 iteration(s).
 
 ## Findings Fixed
 
 ### script-injection (severity: high)
 
-Sub-rule (a): A ${{ }} expression is interpolated directly inside a run: shell command string. In agent-approval-check/action.yml, the step `run: python "${{ github.action_path }}/agent_approval_check.py"` embeds the github.action_path context directly in the shell command before the shell ever sees it. Although github.action_path is not attacker-controlled in the same way as github.head_ref, any ${{ ... }} expression inside a run: block is a script-injection finding per the check rules.
+Sub-rule (a): The 'Revoke app token' step interpolates ${{ steps.run.outputs.github_token }} directly inside a run: shell command string. This expression is substituted by the GitHub Actions template engine before the shell ever sees it, allowing a step output containing shell metacharacters to be injected into the curl command. Offending line: -H "Authorization: Bearer ${{ steps.run.outputs.github_token }}"
+
+Locations:
+
+- `action.yml:349`
+
+### script-injection (severity: high)
+
+Sub-rule (a): The step 'run: python "${{ github.action_path }}/agent_approval_check.py"' interpolates ${{ github.action_path }} directly inside a run: shell command string. Any ${{ ... }} expression directly inside a run: script is a script-injection finding regardless of which context it reads from. Offending line: run: python "${{ github.action_path }}/agent_approval_check.py"
 
 Locations:
 
 - `agent-approval-check/action.yml:55`
 
-### script-injection (severity: high)
-
-Sub-rule (a): A ${{ }} expression is interpolated directly inside a run: shell command string. In action.yml, the 'Revoke app token' step embeds `${{ steps.run.outputs.github_token }}` directly in the curl command: `-H "Authorization: Bearer ${{ steps.run.outputs.github_token }}"`. The steps.*.outputs.* context is a workflow-controllable value that flows through YAML template substitution before the shell sees it.
-
-Locations:
-
-- `action.yml:358`
-
 ### unsafe-shell (severity: high)
 
-The 'Install Claude Code' step in base-action/action.yml pipes remote content directly to bash: `curl -fsSL https://claude.ai/install.sh | bash -s -- $CLAUDE_CODE_VERSION` (and also inside a timeout wrapper: `bash -c "curl -fsSL https://claude.ai/install.sh | bash -s -- $CLAUDE_CODE_VERSION"`). This executes whatever the remote server returns without first downloading and verifying the script.
+The 'Install Claude Code' step pipes the output of curl directly to bash: 'curl -fsSL https://claude.ai/install.sh | bash -s -- $CLAUDE_CODE_VERSION'. This executes remotely-fetched content without first downloading and verifying it, enabling a supply-chain attack if the remote URL is compromised.
 
 Locations:
 
-- `base-action/action.yml:143`
-- `base-action/action.yml:147`
+- `base-action/action.yml:148`
+- `base-action/action.yml:150`
 
 ### github-env-injection (severity: high)
 
-The 'Setup Custom Bun Path' step in action.yml writes a value derived from the untrusted input `inputs.path_to_bun_executable` to $GITHUB_PATH without sanitization. The script computes `BUN_DIR=$(dirname "$PATH_TO_BUN_EXECUTABLE")` and then does `echo "$BUN_DIR" >> "$GITHUB_PATH"`. No `printf '%s' ... | tr -d '\n\r'` sanitization is applied before the write, so a newline-containing input value could inject additional entries into GITHUB_PATH.
+The 'Setup Custom Bun Path' step writes a value derived from the untrusted input inputs.path_to_bun_executable to $GITHUB_PATH without sanitization. The input is placed into env var PATH_TO_BUN_EXECUTABLE, then BUN_DIR=$(dirname "$PATH_TO_BUN_EXECUTABLE") is computed and written with 'echo "$BUN_DIR" >> "$GITHUB_PATH"'. A newline embedded in the input value could inject arbitrary entries into PATH. The required sanitization step (printf '%s' ... | tr -d '\n\r') is absent.
 
 Locations:
 
-- `action.yml:222`
+- `action.yml:163`
+- `base-action/action.yml:131`
 
 ### github-env-injection (severity: high)
 
-The 'Setup Custom Bun Path' step in base-action/action.yml writes a value derived from the untrusted input `inputs.path_to_bun_executable` to $GITHUB_PATH without sanitization. The script computes `BUN_DIR=$(dirname "$PATH_TO_BUN_EXECUTABLE")` and then does `echo "$BUN_DIR" >> "$GITHUB_PATH"`. No `printf '%s' ... | tr -d '\n\r'` sanitization is applied before the write.
+The 'Install Claude Code' step writes a value derived from the untrusted input inputs.path_to_claude_code_executable to $GITHUB_PATH without sanitization. The input is placed into env var PATH_TO_CLAUDE_CODE_EXECUTABLE, then CLAUDE_DIR=$(dirname "$PATH_TO_CLAUDE_CODE_EXECUTABLE") is computed and written with 'echo "$CLAUDE_DIR" >> "$GITHUB_PATH"'. A newline embedded in the input value could inject arbitrary entries into PATH. The required sanitization step (printf '%s' ... | tr -d '\n\r') is absent.
 
 Locations:
 
-- `base-action/action.yml:121`
-
-### github-env-injection (severity: high)
-
-The 'Install Claude Code' step in base-action/action.yml writes a value derived from the untrusted input `inputs.path_to_claude_code_executable` to $GITHUB_PATH without sanitization. When a custom executable path is provided, the script computes `CLAUDE_DIR=$(dirname "$PATH_TO_CLAUDE_CODE_EXECUTABLE")` and then does `echo "$CLAUDE_DIR" >> "$GITHUB_PATH"`. No `printf '%s' ... | tr -d '\n\r'` sanitization is applied before the write.
-
-Locations:
-
-- `base-action/action.yml:157`
+- `base-action/action.yml:163`
 
 ## Iteration Notes
 
@@ -71,37 +64,23 @@ Locations:
 
 **Notes:**
 
-Fixed all 6 findings across 3 files:
-
-1. agent-approval-check/action.yml (script-injection): Moved `${{ github.action_path }}` out of the `run:` shell command into the step's `env:` block as `ACTION_PATH`. Merged the two env: blocks into one clean block.
-
-2. action.yml (script-injection, Revoke app token step): Moved `${{ steps.run.outputs.github_token }}` out of the curl `-H "Authorization: Bearer ..."` argument into an `env:` block as `APP_TOKEN`, referenced as `$APP_TOKEN` in the shell.
-
-3. base-action/action.yml (unsafe-shell, Install Claude Code step): Replaced both `curl -fsSL ... | bash` patterns (the direct pipe and the one inside `bash -c`) with a download-then-execute pattern: `curl -fsSL --max-time 60 -o /tmp/claude-install.sh https://claude.ai/install.sh` followed by `bash /tmp/claude-install.sh -- "$CLAUDE_CODE_VERSION"`. Added cleanup of the temp file after installation.
-
-4. action.yml (github-env-injection, Setup Custom Bun Path step): Added `safe_bun_dir=$(printf '%s' "$BUN_DIR" | tr -d '\n\r')` and write `$safe_bun_dir` to `$GITHUB_PATH` instead of the raw `$BUN_DIR`.
-
-5. base-action/action.yml (github-env-injection, Setup Custom Bun Path step): Same sanitization fix as #4.
-
-6. base-action/action.yml (github-env-injection, Install Claude Code step): Added `safe_claude_dir=$(printf '%s' "$CLAUDE_DIR" | tr -d '\n\r')` and write `$safe_claude_dir` to `$GITHUB_PATH` instead of the raw `$CLAUDE_DIR`.
+Fixed 5 findings across 3 files: (1) action.yml Revoke app token: moved steps.run.outputs.github_token from curl -H header into env: block as APP_TOKEN; (2) agent-approval-check/action.yml: moved github.action_path from run: string into env: block as ACTION_PATH; (3) base-action/action.yml Install Claude Code: replaced curl|bash pipe with download-then-execute pattern (curl -o tmpfile then bash tmpfile), dropped the '--' separator as required; (4) action.yml Setup Custom Bun Path: sanitized BUN_DIR with printf/tr before writing to GITHUB_PATH; (5) base-action/action.yml: sanitized both BUN_DIR (Setup Custom Bun Path) and CLAUDE_DIR (Install Claude Code) with printf/tr before writing to GITHUB_PATH.
 
 ### Iteration 2
 
-**Fixes applied:** unpinned-uses, missing-permissions, script-injection, unsafe-shell, github-env-injection
+**Fixes applied:** unpinned-uses, missing-permissions, script-injection, unsafe-shell
 
 **Notes:**
 
-Fixed all 5 security findings across 7 workflow files:
+Fixed all findings across 8 workflow files:
 
-1. **unpinned-uses**: Pinned all action references to full SHA digests: actions/checkout@v6 → d23441a48e516b6c34aea4fa41551a30e30af803, oven-sh/setup-bun@v2 → 0c5077e51419868618aeaa5fe8019c62421857d6, oven-sh/setup-bun@v1 → f4d14e03ff726c06358e5557344e1da148b56cf7, anthropics/claude-code-action@v1 and @main → 9db594c7a0e82298c121c18b7f08aa1579ce7341.
+1. unpinned-uses: Pinned all mutable action references to full SHAs in ci.yml, claude.yml, claude-review.yml, issue-triage.yml, and release.yml. Used lookup_action_sha to get real SHAs for actions/checkout@v6 (d23441a48e516b6c34aea4fa41551a30e30af803), oven-sh/setup-bun@v2 (0c5077e51419868618aeaa5fe8019c62421857d6), oven-sh/setup-bun@v1 (f4d14e03ff726c06358e5557344e1da148b56cf7), and anthropics/claude-code-action@main/v1 (6b082c41935b4c8a3b8b0ef85ba4ba4d9eeb8975).
 
-2. **missing-permissions**: Added `permissions: contents: read` top-level block to ci.yml.
+2. missing-permissions: Added top-level 'permissions: contents: read' to ci.yml.
 
-3. **script-injection**: Moved all ${{ steps.*.outputs.* }}, ${{ needs.*.outputs.* }}, ${{ github.sha }}, and ${{ needs.*.result }} expressions from run: shell scripts into env: blocks in release.yml, test-base-action.yml, test-custom-executables.yml, and test-structured-output.yml. The test-structured-output.yml summary job's complex ${{ needs.*.result == 'success' && ... }} boolean expression was replaced with equivalent shell logic.
+3. script-injection: Moved all ${{ }} expressions from run: blocks into env: blocks in release.yml, sync-base-action.yml, test-base-action.yml, test-custom-executables.yml, test-structured-output.yml, and test-settings.yml. Also fixed additional injection instances beyond those listed in the findings (5 verify steps in test-structured-output.yml, 4 verify steps in test-settings.yml).
 
-4. **unsafe-shell**: In test-custom-executables.yml, replaced both `curl -fsSL URL | bash` patterns with download-to-temp-file then execute pattern.
-
-5. **github-env-injection**: In release.yml, sanitized both the latest_tag and next_version values with `printf '%s' ... | tr -d '\n\r'` before writing to $GITHUB_OUTPUT. The latest_tag input to the next_version step is now passed via env block (LATEST_TAG) instead of direct ${{ }} interpolation in the run script.
+4. unsafe-shell: Replaced both curl|bash pipes in test-custom-executables.yml with download-to-tempfile-then-execute pattern. For bun.sh/install: 'curl ... | bash' → download to mktemp then 'bash script'. For claude.ai/install.sh: 'curl ... | bash -s latest' → download to mktemp then 'bash script latest' (dropping -s since no longer reading from stdin).
 
 ### Iteration 3
 
@@ -109,9 +88,9 @@ Fixed all 5 security findings across 7 workflow files:
 
 **Notes:**
 
-Fixed all script injection findings:
+Fixed two script injection findings:
 
-1. sync-base-action.yml: Moved `${{ secrets.CLAUDE_CODE_BASE_ACTION_REPO_DEPLOY_KEY }}` out of the `run:` shell string into an `env:` block as `DEPLOY_KEY`. Changed `echo "$DEPLOY_KEY"` to `printf '%s' "$DEPLOY_KEY"` for safer key file writing.
+1. hardened/action/.github/workflows/test-structured-output.yml (line 280): Moved all ${{ needs.*.result == 'success' && '✅ PASS' || '❌ FAIL' }} expressions out of the run: block into an env: block as RESULT_BASIC_TYPES, RESULT_COMPLEX_TYPES, RESULT_EDGE_CASES, RESULT_NAME_SANITIZATION, and RESULT_EXECUTION_FILE variables. Replaced the inline ternary expressions with a shell pass_fail() function and replaced the multi-condition ${{ ... }} ALL_PASSED assignment with a proper shell if/elif chain using [ "$VAR" = "success" ] comparisons.
 
-2. test-settings.yml: Moved all `${{ steps.*.outputs.* }}` expressions (execution_file and conclusion outputs) out of `run:` shell strings into `env:` blocks across all four jobs' verification steps. The shell scripts now reference plain environment variables `$OUTPUT_FILE` and `$CONCLUSION` instead of template expressions.
+2. hardened/action/.github/workflows/test-base-action.yml (line 68): Replaced the unsafe heredoc (which used unquoted ${PROMPT} subject to word splitting and glob expansion) with `printf '%s\n' "$PROMPT" > test-prompt.txt`, which properly double-quotes the env var. The PROMPT env var remains set via env: from the ${{ github.event.inputs.test_prompt || '...' }} expression.
 

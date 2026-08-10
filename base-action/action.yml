@@ -148,27 +148,24 @@ runs:
         if [ -z "$PATH_TO_CLAUDE_CODE_EXECUTABLE" ]; then
           CLAUDE_CODE_VERSION="2.1.222"
           echo "Installing Claude Code v${CLAUDE_CODE_VERSION}..."
+          INSTALL_SCRIPT="$(mktemp)"
           for attempt in 1 2 3; do
             echo "Installation attempt $attempt..."
             if command -v timeout &> /dev/null; then
               # Use --foreground to kill entire process group on timeout, --kill-after to send SIGKILL if SIGTERM fails
-              timeout --foreground --kill-after=10 120 bash -c "
-                set -euo pipefail
-                curl -fsSL --max-time 60 -o /tmp/claude-install.sh https://claude.ai/install.sh
-                bash /tmp/claude-install.sh -- \"\$CLAUDE_CODE_VERSION\"
-              " && break
+              timeout --foreground --kill-after=10 120 bash -c "curl -fsSL https://claude.ai/install.sh -o \"$INSTALL_SCRIPT\" && bash \"$INSTALL_SCRIPT\" \"$CLAUDE_CODE_VERSION\"" && break
             else
-              curl -fsSL --max-time 60 -o /tmp/claude-install.sh https://claude.ai/install.sh
-              bash /tmp/claude-install.sh -- "$CLAUDE_CODE_VERSION" && break
+              curl -fsSL https://claude.ai/install.sh -o "$INSTALL_SCRIPT" && bash "$INSTALL_SCRIPT" "$CLAUDE_CODE_VERSION" && break
             fi
             if [ $attempt -eq 3 ]; then
               echo "Failed to install Claude Code after 3 attempts"
+              rm -f "$INSTALL_SCRIPT"
               exit 1
             fi
             echo "Installation failed, retrying..."
             sleep 5
           done
-          rm -f /tmp/claude-install.sh
+          rm -f "$INSTALL_SCRIPT"
           echo "Claude Code installed successfully"
         else
           echo "Using custom Claude Code executable: $PATH_TO_CLAUDE_CODE_EXECUTABLE"
