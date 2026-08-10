@@ -38,6 +38,7 @@ jobs:
           OUTPUT_FILE: ${{ steps.inline-test.outputs.execution_file }}
           CONCLUSION: ${{ steps.inline-test.outputs.conclusion }}
         run: |
+
           echo "Conclusion: $CONCLUSION"
           echo "Output file: $OUTPUT_FILE"
 
@@ -75,10 +76,10 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Create test prompt file
-        env:
-          PROMPT: ${{ github.event.inputs.test_prompt || 'List the files in the current directory starting with "package"' }}
         run: |
           printf '%s\n' "$PROMPT" > test-prompt.txt
+        env:
+          PROMPT: ${{ github.event.inputs.test_prompt || 'List the files in the current directory starting with "package"' }}
 
       - name: Test with prompt file and allowed tools
         id: prompt-file-test
@@ -95,6 +96,7 @@ jobs:
           OUTPUT_FILE: ${{ steps.prompt-file-test.outputs.execution_file }}
           CONCLUSION: ${{ steps.prompt-file-test.outputs.conclusion }}
         run: |
+
           echo "Conclusion: $CONCLUSION"
           echo "Output file: $OUTPUT_FILE"
 
