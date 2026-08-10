@@ -71,8 +71,8 @@ jobs:
         if: ${{ inputs.dry_run }}
         env:
           NEXT_VERSION: ${{ steps.next_version.outputs.next_version }}
-          COMMIT_SHA: ${{ github.sha }}
           LATEST_TAG: ${{ steps.get_latest_tag.outputs.latest_tag }}
+          COMMIT_SHA: ${{ github.sha }}
         run: |
           echo "🔍 DRY RUN MODE"
           echo "Would create tag: $NEXT_VERSION"

@@ -21,10 +21,10 @@ jobs:
       - name: Install Bun manually
         run: |
           echo "Installing Bun..."
-          bun_install_script=$(mktemp)
-          curl -fsSL https://bun.sh/install -o "$bun_install_script"
-          bash "$bun_install_script"
-          rm -f "$bun_install_script"
+          INSTALL_SCRIPT=$(mktemp)
+          curl -fsSL https://bun.sh/install -o "$INSTALL_SCRIPT"
+          bash "$INSTALL_SCRIPT"
+          rm -f "$INSTALL_SCRIPT"
           echo "Bun installed at: $HOME/.bun/bin/bun"
 
           # Verify Bun installation
@@ -39,10 +39,10 @@ jobs:
       - name: Install Claude Code manually
         run: |
           echo "Installing Claude Code..."
-          claude_install_script=$(mktemp)
-          curl -fsSL https://claude.ai/install.sh -o "$claude_install_script"
-          bash "$claude_install_script" -- latest
-          rm -f "$claude_install_script"
+          INSTALL_SCRIPT=$(mktemp)
+          curl -fsSL https://claude.ai/install.sh -o "$INSTALL_SCRIPT"
+          bash "$INSTALL_SCRIPT" latest
+          rm -f "$INSTALL_SCRIPT"
           echo "Claude Code installed at: $HOME/.local/bin/claude"
 
           # Verify Claude installation
@@ -72,7 +72,6 @@ jobs:
           OUTPUT_FILE: ${{ steps.custom-test.outputs.execution_file }}
           CONCLUSION: ${{ steps.custom-test.outputs.conclusion }}
         run: |
-
           echo "Conclusion: $CONCLUSION"
           echo "Output file: $OUTPUT_FILE"
 

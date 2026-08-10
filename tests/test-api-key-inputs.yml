@@ -1,4 +1,4 @@
-name: Test workload identity federation inputs accepted
+name: Test API key and trigger inputs accepted
 on:
   workflow_dispatch:
 jobs:
@@ -12,15 +12,14 @@ jobs:
       - id: action
         uses: .
         with:
-          # Pass federation/OIDC inputs (no prompt → action skips cleanly)
-          anthropic_federation_rule_id: "fdrl_fake_rule_id_for_coverage"
-          anthropic_organization_id: "00000000-0000-0000-0000-000000000000"
-          anthropic_service_account_id: "svac_fake_service_account_for_coverage"
-          anthropic_workspace_id: "wrkspc_fake_workspace_for_coverage"
-          anthropic_oidc_audience: "https://api.anthropic.com"
+          # Pass API key and OAuth token inputs (no prompt → action skips cleanly)
+          anthropic_api_key: "sk-ant-fake-key-for-input-coverage"
+          claude_code_oauth_token: "fake-oauth-token-for-input-coverage"
+          assignee_trigger: "claude"
+          base_branch: "main"
           github_token: ${{ github.token }}
 
-      - name: Assert action accepted all federation inputs and skipped cleanly
+      - name: Assert action accepted all inputs and skipped cleanly
         env:
           EXECUTION_FILE: ${{ steps.action.outputs.execution_file }}
         run: |
@@ -31,4 +30,4 @@ jobs:
             echo "FAIL: expected empty execution_file but got: $EXECUTION_FILE"
             exit 1
           fi
-          echo "PASS: action accepted all federation/OIDC inputs and skipped cleanly"
+          echo "PASS: action accepted anthropic_api_key, claude_code_oauth_token, assignee_trigger, base_branch and skipped cleanly"
