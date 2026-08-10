@@ -38,6 +38,7 @@ jobs:
           OUTPUT_FILE: ${{ steps.inline-test.outputs.execution_file }}
           CONCLUSION: ${{ steps.inline-test.outputs.conclusion }}
         run: |
+
           echo "Conclusion: $CONCLUSION"
           echo "Output file: $OUTPUT_FILE"
 
@@ -76,7 +77,9 @@ jobs:
 
       - name: Create test prompt file
         run: |
-          printf '%s\n' "$PROMPT" > test-prompt.txt
+          cat > test-prompt.txt << EOF
+          ${PROMPT}
+          EOF
         env:
           PROMPT: ${{ github.event.inputs.test_prompt || 'List the files in the current directory starting with "package"' }}
 
@@ -95,6 +98,7 @@ jobs:
           OUTPUT_FILE: ${{ steps.prompt-file-test.outputs.execution_file }}
           CONCLUSION: ${{ steps.prompt-file-test.outputs.conclusion }}
         run: |
+
           echo "Conclusion: $CONCLUSION"
           echo "Output file: $OUTPUT_FILE"
 

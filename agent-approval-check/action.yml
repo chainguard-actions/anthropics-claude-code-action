@@ -54,8 +54,8 @@ runs:
         python-version: "3.12"
     - run: pip install 'httpx==0.28.1' 'pyyaml==6.0.3' 'tenacity==9.1.4'
       shell: bash
-    - shell: bash
-      run: python "$ACTION_PATH/agent_approval_check.py"
+    - run: python "$ACTION_PATH/agent_approval_check.py"
+      shell: bash
       env:
         ACTION_PATH: ${{ github.action_path }}
         GH_TOKEN: ${{ inputs.github_token }}
