@@ -10,21 +10,23 @@ jobs:
         uses: .
         continue-on-error: true
         with:
-          anthropic_federation_rule_id: "fdrl_test_not_real"
+          anthropic_federation_rule_id: "fdrl_fake_rule_id_for_testing"
           anthropic_organization_id: "00000000-0000-0000-0000-000000000000"
-          anthropic_service_account_id: "svac_test_not_real"
-          anthropic_workspace_id: "wrkspc_test_not_real"
+          anthropic_service_account_id: "svac_fake_service_account"
+          anthropic_workspace_id: "wrkspc_fake_workspace"
           anthropic_oidc_audience: "https://api.anthropic.com"
           prompt: "Say hello"
-          github_token: ${{ github.token }}
-      - name: Assert action ran (even if it failed due to invalid federation config)
+          trigger_phrase: "@claude"
+      - name: Assert action ran (fails gracefully with fake federation credentials)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
         run: |
-          echo "Action completed (with or without error due to test federation config)"
-          echo "outcome: ${{ steps.action.outcome }}"
-          # The action should either succeed or fail with an auth error, not a setup error
-          # We just verify the step ran (outcome is set)
-          if [ -z "${{ steps.action.outcome }}" ]; then
-            echo "FAIL: step outcome not set"
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (expected with fake federation credentials)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
             exit 1
           fi
-          echo "PASS: step ran with federation inputs"
