@@ -21,8 +21,10 @@ jobs:
       - name: Install Bun manually
         run: |
           echo "Installing Bun..."
-          curl -fsSL -o /tmp/bun-install.sh https://bun.sh/install
-          bash /tmp/bun-install.sh
+          BUN_INSTALL_SCRIPT="$(mktemp)"
+          curl -fsSL https://bun.sh/install -o "$BUN_INSTALL_SCRIPT"
+          bash "$BUN_INSTALL_SCRIPT"
+          rm -f "$BUN_INSTALL_SCRIPT"
           echo "Bun installed at: $HOME/.bun/bin/bun"
 
           # Verify Bun installation
@@ -37,8 +39,10 @@ jobs:
       - name: Install Claude Code manually
         run: |
           echo "Installing Claude Code..."
-          curl -fsSL -o /tmp/claude-install.sh https://claude.ai/install.sh
-          bash /tmp/claude-install.sh latest
+          CLAUDE_INSTALL_SCRIPT="$(mktemp)"
+          curl -fsSL https://claude.ai/install.sh -o "$CLAUDE_INSTALL_SCRIPT"
+          bash "$CLAUDE_INSTALL_SCRIPT" latest
+          rm -f "$CLAUDE_INSTALL_SCRIPT"
           echo "Claude Code installed at: $HOME/.local/bin/claude"
 
           # Verify Claude installation
