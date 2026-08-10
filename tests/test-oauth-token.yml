@@ -1,4 +1,4 @@
-name: Test workload identity federation inputs
+name: Test OAuth token input
 on:
   workflow_dispatch:
 jobs:
@@ -10,14 +10,10 @@ jobs:
         uses: .
         continue-on-error: true
         with:
-          anthropic_federation_rule_id: "fdrl_test_invalid_for_coverage"
-          anthropic_organization_id: "00000000-0000-0000-0000-000000000000"
-          anthropic_service_account_id: "svac_test_invalid_for_coverage"
-          anthropic_workspace_id: "wrkspc_test_invalid_for_coverage"
-          anthropic_oidc_audience: "https://api.anthropic.com"
+          claude_code_oauth_token: "test-oauth-token-invalid-for-coverage"
           prompt: "Say hello"
           trigger_phrase: "@claude"
-      - name: Assert action ran (fails gracefully without valid federation config or real repo)
+      - name: Assert action ran (fails gracefully without valid OAuth token or real repo)
         env:
           OUTCOME: ${{ steps.action.outcome }}
         run: |
