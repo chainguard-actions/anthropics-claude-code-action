@@ -1,4 +1,4 @@
-name: Test workload identity federation inputs
+name: Test API key and branch inputs
 on:
   workflow_dispatch:
 jobs:
@@ -10,11 +10,9 @@ jobs:
         uses: .
         continue-on-error: true
         with:
-          anthropic_federation_rule_id: "fdrl_fake_rule_id_for_testing"
-          anthropic_organization_id: "00000000-0000-0000-0000-000000000000"
-          anthropic_service_account_id: "svac_fake_service_account_id"
-          anthropic_workspace_id: "wrkspc_fake_workspace_id"
-          anthropic_oidc_audience: "https://api.anthropic.com"
+          anthropic_api_key: "sk-ant-fake-key-for-testing"
+          assignee_trigger: "claude"
+          base_branch: "main"
           prompt: "Say hello"
           trigger_phrase: "@claude"
       - name: Assert action ran or failed gracefully
@@ -23,7 +21,7 @@ jobs:
         run: |
           echo "outcome: $OUTCOME"
           if [ "$OUTCOME" = "success" ] || [ "$OUTCOME" = "failure" ]; then
-            echo "PASS: action completed with outcome '$OUTCOME' (no valid federation credentials, graceful failure expected)"
+            echo "PASS: action completed with outcome '$OUTCOME' (no API key provided, graceful failure expected)"
           else
             echo "FAIL: unexpected outcome '$OUTCOME'"
             exit 1

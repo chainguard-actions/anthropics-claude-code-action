@@ -1,4 +1,4 @@
-name: Test workload identity federation inputs
+name: Test OAuth token input
 on:
   workflow_dispatch:
 jobs:
@@ -10,11 +10,7 @@ jobs:
         uses: .
         continue-on-error: true
         with:
-          anthropic_federation_rule_id: "fdrl_fake_rule_id_for_testing"
-          anthropic_organization_id: "00000000-0000-0000-0000-000000000000"
-          anthropic_service_account_id: "svac_fake_service_account_id"
-          anthropic_workspace_id: "wrkspc_fake_workspace_id"
-          anthropic_oidc_audience: "https://api.anthropic.com"
+          claude_code_oauth_token: "fake-oauth-token-for-testing"
           prompt: "Say hello"
           trigger_phrase: "@claude"
       - name: Assert action ran or failed gracefully
@@ -23,7 +19,7 @@ jobs:
         run: |
           echo "outcome: $OUTCOME"
           if [ "$OUTCOME" = "success" ] || [ "$OUTCOME" = "failure" ]; then
-            echo "PASS: action completed with outcome '$OUTCOME' (no valid federation credentials, graceful failure expected)"
+            echo "PASS: action completed with outcome '$OUTCOME' (no valid OAuth token provided, graceful failure expected)"
           else
             echo "FAIL: unexpected outcome '$OUTCOME'"
             exit 1
