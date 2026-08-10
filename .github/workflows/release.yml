@@ -148,8 +148,10 @@ jobs:
   #         fetch-depth: 0
   #
   #     - name: Create and push tag
+  #       env:
+  #         NEXT_VERSION: ${{ needs.create-release.outputs.next_version }}
   #       run: |
-  #         next_version="${{ needs.create-release.outputs.next_version }}"
+  #         next_version="$NEXT_VERSION"
   #
   #         git config user.name "github-actions[bot]"
   #         git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -165,8 +167,9 @@ jobs:
   #     - name: Create GitHub release
   #       env:
   #         GH_TOKEN: ${{ secrets.CLAUDE_CODE_BASE_ACTION_PAT }}
+  #         NEXT_VERSION: ${{ needs.create-release.outputs.next_version }}
   #       run: |
-  #         next_version="${{ needs.create-release.outputs.next_version }}"
+  #         next_version="$NEXT_VERSION"
   #
   #         # Create the release
   #         gh release create "$next_version" \
