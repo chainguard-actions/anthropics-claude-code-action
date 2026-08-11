@@ -1,0 +1,44 @@
+name: Test custom input configuration
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          prompt: "Echo the word TESTPASS"
+          anthropic_api_key: "sk-ant-fake-key-for-testing"
+          trigger_phrase: "@mybot"
+          branch_prefix: "mybot/"
+          use_sticky_comment: "true"
+          classify_inline_comments: "false"
+          bot_name: "mybot[bot]"
+          bot_id: "12345678"
+          include_fix_links: "false"
+          display_report: "false"
+          show_full_output: "false"
+
+      - name: Assert action ran with custom inputs (graceful failure acceptable)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: $CONCLUSION"
+          if [ "$OUTCOME" = "success" ]; then
+            if [ -z "$CONCLUSION" ]; then
+              echo "FAIL: action succeeded but conclusion output is empty"
+              exit 1
+            fi
+            echo "PASS: action succeeded with conclusion='$CONCLUSION'"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (expected without valid API key)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

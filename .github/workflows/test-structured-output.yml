@@ -257,7 +257,6 @@ jobs:
         env:
           FILE: ${{ steps.test.outputs.execution_file }}
         run: |
-
           # Check file exists
           if [ ! -f "$FILE" ]; then
             echo "❌ Execution file missing"
@@ -293,11 +292,11 @@ jobs:
     steps:
       - name: Generate Summary
         env:
-          BASIC_RESULT: ${{ needs.test-basic-types.result }}
-          COMPLEX_RESULT: ${{ needs.test-complex-types.result }}
-          EDGE_RESULT: ${{ needs.test-edge-cases.result }}
-          SANITIZATION_RESULT: ${{ needs.test-name-sanitization.result }}
-          EXECUTION_RESULT: ${{ needs.test-execution-file-structure.result }}
+          RESULT_BASIC_TYPES: ${{ needs.test-basic-types.result }}
+          RESULT_COMPLEX_TYPES: ${{ needs.test-complex-types.result }}
+          RESULT_EDGE_CASES: ${{ needs.test-edge-cases.result }}
+          RESULT_NAME_SANITIZATION: ${{ needs.test-name-sanitization.result }}
+          RESULT_EXECUTION_FILE: ${{ needs.test-execution-file-structure.result }}
         run: |
           echo "# Structured Output Tests (Optimized)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -305,25 +304,24 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Test | Result |" >> $GITHUB_STEP_SUMMARY
           echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
-
-          [ "$BASIC_RESULT" = "success" ] && BASIC_LABEL="✅ PASS" || BASIC_LABEL="❌ FAIL"
-          [ "$COMPLEX_RESULT" = "success" ] && COMPLEX_LABEL="✅ PASS" || COMPLEX_LABEL="❌ FAIL"
-          [ "$EDGE_RESULT" = "success" ] && EDGE_LABEL="✅ PASS" || EDGE_LABEL="❌ FAIL"
-          [ "$SANITIZATION_RESULT" = "success" ] && SANITIZATION_LABEL="✅ PASS" || SANITIZATION_LABEL="❌ FAIL"
-          [ "$EXECUTION_RESULT" = "success" ] && EXECUTION_LABEL="✅ PASS" || EXECUTION_LABEL="❌ FAIL"
-
-          echo "| Basic Types | $BASIC_LABEL |" >> $GITHUB_STEP_SUMMARY
-          echo "| Complex Types | $COMPLEX_LABEL |" >> $GITHUB_STEP_SUMMARY
-          echo "| Edge Cases | $EDGE_LABEL |" >> $GITHUB_STEP_SUMMARY
-          echo "| Name Sanitization | $SANITIZATION_LABEL |" >> $GITHUB_STEP_SUMMARY
-          echo "| Execution File | $EXECUTION_LABEL |" >> $GITHUB_STEP_SUMMARY
+          echo "| Basic Types | $([ "$RESULT_BASIC_TYPES" = "success" ] && echo "✅ PASS" || echo "❌ FAIL") |" >> $GITHUB_STEP_SUMMARY
+          echo "| Complex Types | $([ "$RESULT_COMPLEX_TYPES" = "success" ] && echo "✅ PASS" || echo "❌ FAIL") |" >> $GITHUB_STEP_SUMMARY
+          echo "| Edge Cases | $([ "$RESULT_EDGE_CASES" = "success" ] && echo "✅ PASS" || echo "❌ FAIL") |" >> $GITHUB_STEP_SUMMARY
+          echo "| Name Sanitization | $([ "$RESULT_NAME_SANITIZATION" = "success" ] && echo "✅ PASS" || echo "❌ FAIL") |" >> $GITHUB_STEP_SUMMARY
+          echo "| Execution File | $([ "$RESULT_EXECUTION_FILE" = "success" ] && echo "✅ PASS" || echo "❌ FAIL") |" >> $GITHUB_STEP_SUMMARY
 
           # Check if all passed
-          if [ "$BASIC_RESULT" = "success" ] && \
-             [ "$COMPLEX_RESULT" = "success" ] && \
-             [ "$EDGE_RESULT" = "success" ] && \
-             [ "$SANITIZATION_RESULT" = "success" ] && \
-             [ "$EXECUTION_RESULT" = "success" ]; then
+          if [ "$RESULT_BASIC_TYPES" = "success" ] && \
+             [ "$RESULT_COMPLEX_TYPES" = "success" ] && \
+             [ "$RESULT_EDGE_CASES" = "success" ] && \
+             [ "$RESULT_NAME_SANITIZATION" = "success" ] && \
+             [ "$RESULT_EXECUTION_FILE" = "success" ]; then
+            ALL_PASSED=true
+          else
+            ALL_PASSED=false
+          fi
+
+          if [ "$ALL_PASSED" = "true" ]; then
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "## ✅ All Tests Passed" >> $GITHUB_STEP_SUMMARY
           else

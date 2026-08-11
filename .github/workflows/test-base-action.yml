@@ -31,14 +31,13 @@ jobs:
           anthropic_federation_rule_id: ${{ vars.ANTHROPIC_FEDERATION_RULE_ID }}
           anthropic_organization_id: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
           anthropic_service_account_id: ${{ vars.ANTHROPIC_SERVICE_ACCOUNT_ID }}
-          allowed_tools: "LS,Read"
+          claude_args: '--allowedTools "LS,Read"'
 
       - name: Verify inline prompt output
         env:
           OUTPUT_FILE: ${{ steps.inline-test.outputs.execution_file }}
           CONCLUSION: ${{ steps.inline-test.outputs.conclusion }}
         run: |
-
           echo "Conclusion: $CONCLUSION"
           echo "Output file: $OUTPUT_FILE"
 
@@ -76,12 +75,10 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Create test prompt file
-        run: |
-          cat > test-prompt.txt << EOF
-          ${PROMPT}
-          EOF
         env:
           PROMPT: ${{ github.event.inputs.test_prompt || 'List the files in the current directory starting with "package"' }}
+        run: |
+          printf '%s\n' "$PROMPT" > test-prompt.txt
 
       - name: Test with prompt file and allowed tools
         id: prompt-file-test
@@ -91,14 +88,13 @@ jobs:
           anthropic_federation_rule_id: ${{ vars.ANTHROPIC_FEDERATION_RULE_ID }}
           anthropic_organization_id: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
           anthropic_service_account_id: ${{ vars.ANTHROPIC_SERVICE_ACCOUNT_ID }}
-          allowed_tools: "LS,Read"
+          claude_args: '--allowedTools "LS,Read"'
 
       - name: Verify prompt file output
         env:
           OUTPUT_FILE: ${{ steps.prompt-file-test.outputs.execution_file }}
           CONCLUSION: ${{ steps.prompt-file-test.outputs.conclusion }}
         run: |
-
           echo "Conclusion: $CONCLUSION"
           echo "Output file: $OUTPUT_FILE"
 

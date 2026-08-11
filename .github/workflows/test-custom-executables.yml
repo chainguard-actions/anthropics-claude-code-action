@@ -21,10 +21,10 @@ jobs:
       - name: Install Bun manually
         run: |
           echo "Installing Bun..."
-          BUN_INSTALL_SCRIPT="$(mktemp)"
-          curl -fsSL https://bun.sh/install -o "$BUN_INSTALL_SCRIPT"
-          bash "$BUN_INSTALL_SCRIPT"
-          rm -f "$BUN_INSTALL_SCRIPT"
+          INSTALL_SCRIPT="$(mktemp)"
+          curl -fsSL https://bun.sh/install -o "$INSTALL_SCRIPT"
+          bash "$INSTALL_SCRIPT"
+          rm -f "$INSTALL_SCRIPT"
           echo "Bun installed at: $HOME/.bun/bin/bun"
 
           # Verify Bun installation
@@ -39,10 +39,10 @@ jobs:
       - name: Install Claude Code manually
         run: |
           echo "Installing Claude Code..."
-          CLAUDE_INSTALL_SCRIPT="$(mktemp)"
-          curl -fsSL https://claude.ai/install.sh -o "$CLAUDE_INSTALL_SCRIPT"
-          bash "$CLAUDE_INSTALL_SCRIPT" latest
-          rm -f "$CLAUDE_INSTALL_SCRIPT"
+          INSTALL_SCRIPT="$(mktemp)"
+          curl -fsSL https://claude.ai/install.sh -o "$INSTALL_SCRIPT"
+          bash "$INSTALL_SCRIPT" latest
+          rm -f "$INSTALL_SCRIPT"
           echo "Claude Code installed at: $HOME/.local/bin/claude"
 
           # Verify Claude installation
@@ -65,14 +65,13 @@ jobs:
           anthropic_service_account_id: ${{ vars.ANTHROPIC_SERVICE_ACCOUNT_ID }}
           path_to_claude_code_executable: /home/runner/.local/bin/claude
           path_to_bun_executable: /home/runner/.bun/bin/bun
-          allowed_tools: "LS,Read"
+          claude_args: '--allowedTools "LS,Read"'
 
       - name: Verify custom executables worked
         env:
           OUTPUT_FILE: ${{ steps.custom-test.outputs.execution_file }}
           CONCLUSION: ${{ steps.custom-test.outputs.conclusion }}
         run: |
-
           echo "Conclusion: $CONCLUSION"
           echo "Output file: $OUTPUT_FILE"
 
