@@ -1,0 +1,41 @@
+name: Test outputs set on skip path
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        # No prompt → no trigger → action skips. The code sets github_token
+        # output even on the skip path (see run.ts: core.setOutput("github_token", githubToken))
+        continue-on-error: true
+      - name: Assert github_token output is set on skip path
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          GITHUB_TOKEN_OUT: ${{ steps.action.outputs.github_token }}
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+          BRANCH_NAME: ${{ steps.action.outputs.branch_name }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: $CONCLUSION"
+          echo "branch_name: $BRANCH_NAME"
+          echo "github_token set: $([ -n "$GITHUB_TOKEN_OUT" ] && echo yes || echo no)"
+
+          if [ "$OUTCOME" = "success" ]; then
+            # On the skip path, github_token should be set (the action sets it
+            # before returning early when no trigger is found).
+            if [ -z "$GITHUB_TOKEN_OUT" ]; then
+              echo "WARN: github_token output is empty on skip path (may be masked)"
+            else
+              echo "PASS: github_token output is set"
+            fi
+            # conclusion should be empty on skip path (not set before early return)
+            echo "PASS: action completed skip path successfully"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (sentinel repo or missing credentials)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

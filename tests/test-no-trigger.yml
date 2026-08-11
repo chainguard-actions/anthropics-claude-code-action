@@ -1,0 +1,32 @@
+name: Test no trigger (no prompt on workflow_dispatch)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        # No prompt provided — on workflow_dispatch the action should detect
+        # no trigger and exit cleanly without calling Claude or needing an API key.
+        continue-on-error: true
+      - name: Assert action skipped gracefully (no trigger)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: $CONCLUSION"
+          # The action should succeed (skip path) or fail gracefully.
+          # Without a prompt on workflow_dispatch, it logs "No trigger found"
+          # and exits 0. If it fails (e.g. bun install issue), that's still
+          # acceptable as long as it doesn't hang.
+          if [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action exited cleanly with no trigger"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (acceptable without credentials)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

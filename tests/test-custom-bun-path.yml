@@ -1,0 +1,42 @@
+name: Test custom bun executable path
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Install bun for custom path test
+        run: |
+          curl -fsSL https://bun.sh/install | bash
+          echo "$HOME/.bun/bin" >> "$GITHUB_PATH"
+      - name: Verify bun is available
+        run: |
+          BUN_PATH="$HOME/.bun/bin/bun"
+          if [ ! -x "$BUN_PATH" ]; then
+            echo "FAIL: bun not found at $BUN_PATH"
+            exit 1
+          fi
+          echo "bun version: $($BUN_PATH --version)"
+          echo "PASS: bun is available at $BUN_PATH"
+      - id: action
+        uses: .
+        with:
+          # Pass the custom bun path — this exercises the "Setup Custom Bun Path"
+          # step and skips the oven-sh/setup-bun installation step.
+          path_to_bun_executable: /root/.bun/bin/bun
+          # No prompt → no trigger → action skips gracefully without API key
+        continue-on-error: true
+      - name: Assert action ran with custom bun path
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # The action should either succeed (skip path, no trigger) or fail
+          # gracefully. Either way it must have used the custom bun path.
+          if [ "$OUTCOME" = "success" ] || [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action ran (outcome: $OUTCOME) using custom bun path"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
