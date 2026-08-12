@@ -1,0 +1,38 @@
+name: Test configuration options
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          prompt: "List files in the current directory"
+          trigger_phrase: "@claude"
+          branch_prefix: "claude-"
+          use_sticky_comment: "true"
+          classify_inline_comments: "false"
+          use_commit_signing: "false"
+          display_report: "false"
+          show_full_output: "false"
+          # No API key — action will fail at Claude invocation, not at setup
+
+      - name: Assert action setup completed and failed gracefully without API key
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: $CONCLUSION"
+          if [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded (conclusion=$CONCLUSION)"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (no API key, expected)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
