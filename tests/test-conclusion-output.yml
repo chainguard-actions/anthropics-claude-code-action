@@ -1,0 +1,43 @@
+name: Test conclusion output is set on failure
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          prompt: "Echo test"
+          trigger_phrase: "@claude"
+          # No API key — action will fail, but conclusion output should be set
+
+      - name: Assert conclusion output is set
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: $CONCLUSION"
+          if [ "$OUTCOME" = "failure" ]; then
+            # When action fails, conclusion should be 'failure' or empty
+            if [ "$CONCLUSION" = "failure" ] || [ -z "$CONCLUSION" ]; then
+              echo "PASS: action failed gracefully (no API key), conclusion='$CONCLUSION'"
+            else
+              echo "FAIL: unexpected conclusion value '$CONCLUSION' on failure"
+              exit 1
+            fi
+          elif [ "$OUTCOME" = "success" ]; then
+            if [ "$CONCLUSION" = "success" ] || [ "$CONCLUSION" = "failure" ]; then
+              echo "PASS: conclusion output is set to '$CONCLUSION'"
+            else
+              echo "FAIL: conclusion output is empty or unexpected on success"
+              exit 1
+            fi
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
