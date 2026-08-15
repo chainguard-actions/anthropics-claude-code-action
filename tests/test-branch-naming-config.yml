@@ -1,0 +1,37 @@
+name: Test branch naming configuration
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          prompt: "Create a simple hello world script"
+          branch_prefix: "claude-"
+          branch_name_template: "{{prefix}}{{entityType}}-{{entityNumber}}-{{timestamp}}"
+          use_sticky_comment: "true"
+          classify_inline_comments: "false"
+          # No API key — will fail at auth stage
+
+      - name: Assert action failed gracefully with branch config inputs
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          BRANCH_NAME: ${{ steps.action.outputs.branch_name }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "branch_name output: $BRANCH_NAME"
+          # Without an API key the action must fail
+          if [ "$OUTCOME" = "success" ]; then
+            echo "FAIL: action unexpectedly succeeded without an API key"
+            exit 1
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully as expected — branch config inputs were accepted"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

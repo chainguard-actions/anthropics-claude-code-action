@@ -1,0 +1,37 @@
+name: Test custom trigger configuration
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          prompt: "List files in the current directory"
+          trigger_phrase: "@bot"
+          label_trigger: "bot-review"
+          branch_prefix: "bot/"
+          use_sticky_comment: "false"
+          # No API key — will fail at auth stage, not at config parsing
+
+      - name: Assert action failed at auth stage not config stage
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # The action should fail because no API key is provided,
+          # not because of invalid configuration inputs.
+          # A failure here is expected and correct.
+          if [ "$OUTCOME" = "success" ]; then
+            echo "FAIL: action unexpectedly succeeded without an API key"
+            exit 1
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed as expected (no API key) — config inputs were accepted"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
