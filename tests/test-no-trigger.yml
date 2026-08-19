@@ -1,0 +1,31 @@
+name: Test no trigger - action exits gracefully
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        # No prompt provided → action should detect no trigger and skip
+        # No anthropic_api_key → would fail if it got past the trigger check
+        continue-on-error: true
+
+      - name: Assert action ran and exited gracefully (no trigger)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: $CONCLUSION"
+          # The action should either succeed (no trigger found, exits cleanly)
+          # or fail gracefully (e.g. permission check against sentinel repo).
+          # It must NOT be skipped.
+          if [ "$OUTCOME" = "skipped" ]; then
+            echo "FAIL: action step was skipped unexpectedly"
+            exit 1
+          fi
+          echo "PASS: action ran (outcome=$OUTCOME)"

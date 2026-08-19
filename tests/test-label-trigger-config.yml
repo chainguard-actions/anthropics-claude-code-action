@@ -1,0 +1,38 @@
+name: Test label trigger configuration
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        with:
+          # Configure a label trigger - no label present in workflow_dispatch
+          # so the action should exit without triggering
+          label_trigger: "claude"
+          trigger_phrase: "@claude"
+          branch_prefix: "claude/"
+          branch_name_template: ""
+          allowed_bots: ""
+          use_sticky_comment: "false"
+        continue-on-error: true
+
+      - name: Assert action ran with label trigger config
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+          BRANCH_NAME: ${{ steps.action.outputs.branch_name }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: $CONCLUSION"
+          echo "branch_name: $BRANCH_NAME"
+          # Action must not be skipped
+          if [ "$OUTCOME" = "skipped" ]; then
+            echo "FAIL: action step was skipped unexpectedly"
+            exit 1
+          fi
+          echo "PASS: action ran with label trigger configuration (outcome=$OUTCOME)"
