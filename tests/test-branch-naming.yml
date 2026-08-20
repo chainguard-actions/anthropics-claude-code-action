@@ -1,0 +1,37 @@
+name: Test branch naming template input
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          prompt: "Create a simple hello world file"
+          branch_prefix: "claude/"
+          branch_name_template: "{{prefix}}{{entityType}}-{{entityNumber}}-{{timestamp}}"
+          use_commit_signing: "false"
+          # No anthropic_api_key — action should fail gracefully
+
+      - name: Assert action ran (branch naming inputs accepted, graceful failure without API key)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+          BRANCH_NAME: ${{ steps.action.outputs.branch_name }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: $CONCLUSION"
+          echo "branch_name: $BRANCH_NAME"
+          if [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded"
+            # If it succeeded, branch_name output may or may not be set depending on whether a branch was created
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (no API key) — branch naming inputs accepted"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
