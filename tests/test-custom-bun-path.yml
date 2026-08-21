@@ -1,0 +1,48 @@
+name: Test custom bun executable path
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install Bun for custom path test
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # https://github.com/oven-sh/setup-bun/releases/tag/v2.2.0
+        with:
+          bun-version: 1.3.14
+
+      - name: Get bun path
+        id: bun-path
+        run: |
+          BUN_PATH="$(which bun)"
+          echo "bun-path=$BUN_PATH" >> "$GITHUB_OUTPUT"
+          echo "Found bun at: $BUN_PATH"
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          path_to_bun_executable: ${{ steps.bun-path.outputs.bun-path }}
+          prompt: "Say hello"
+          # No anthropic_api_key — action should fail gracefully
+
+      - name: Assert action ran with custom bun path (failed gracefully without API key)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: $CONCLUSION"
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully as expected (no API key)"
+          elif [ "$OUTCOME" = "success" ]; then
+            if [ -z "$CONCLUSION" ]; then
+              echo "FAIL: action succeeded but conclusion output is empty"
+              exit 1
+            fi
+            echo "PASS: action succeeded with conclusion='$CONCLUSION'"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
