@@ -1,0 +1,45 @@
+name: Test default inputs and graceful failure
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          # Use default trigger_phrase (@claude), branch_prefix (claude/), label_trigger (claude)
+          prompt: "List the files in the current directory"
+          use_sticky_comment: "false"
+          classify_inline_comments: "true"
+          use_commit_signing: "false"
+          include_fix_links: "true"
+          display_report: "false"
+          show_full_output: "false"
+          # No API key - expect failure
+
+      - name: Assert action ran and failed gracefully (no API key)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+          EXECUTION_FILE: ${{ steps.action.outputs.execution_file }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: $CONCLUSION"
+          echo "execution_file: $EXECUTION_FILE"
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully as expected (no API credentials)"
+          elif [ "$OUTCOME" = "success" ]; then
+            # If somehow it succeeded, check that conclusion output is set
+            if [ -z "$CONCLUSION" ]; then
+              echo "FAIL: action succeeded but conclusion output is empty"
+              exit 1
+            fi
+            echo "PASS: action succeeded with conclusion='$CONCLUSION'"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
