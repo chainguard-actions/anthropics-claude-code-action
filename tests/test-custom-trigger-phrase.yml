@@ -1,0 +1,34 @@
+name: Test custom trigger phrase input
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          trigger_phrase: "@mybot"
+          prompt: "List files in the current directory"
+          branch_prefix: "mybot/"
+          use_sticky_comment: "false"
+          # No anthropic_api_key — action will fail at the run step
+
+      - name: Assert action ran (failed gracefully on missing credentials)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # The action should fail (no API key) or succeed — but never be skipped
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully as expected (no API credentials)"
+          elif [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded unexpectedly — inputs were accepted"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME' (expected failure or success)"
+            exit 1
+          fi

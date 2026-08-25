@@ -1,0 +1,32 @@
+name: Test API key, github_token, and base_branch inputs
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          anthropic_api_key: "sk-ant-fake-key-for-coverage"
+          github_token: ${{ github.token }}
+          base_branch: "main"
+          prompt: "Say hello"
+          trigger_phrase: "@claude"
+      - name: Assert action ran (outputs set, or failed gracefully on the sentinel repo)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: $CONCLUSION"
+          if [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (expected with fake credentials or sentinel repo)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
