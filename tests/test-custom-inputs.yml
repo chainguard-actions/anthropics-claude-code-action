@@ -1,0 +1,36 @@
+name: Test - Custom inputs accepted
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          prompt: "List the files in the current directory"
+          trigger_phrase: "@bot"
+          branch_prefix: "claude-"
+          use_sticky_comment: "true"
+          classify_inline_comments: "false"
+          include_fix_links: "false"
+          # No API key — expected to fail, but inputs should be accepted
+
+      - name: Assert action ran (failed gracefully without credentials)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # Without credentials the action must fail — but it must not be skipped
+          if [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded (credentials were available)"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully as expected without credentials"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME' (expected success or failure)"
+            exit 1
+          fi

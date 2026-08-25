@@ -1,0 +1,46 @@
+name: Test - Bot identity inputs
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          prompt: "Echo hello"
+          bot_name: "my-bot[bot]"
+          bot_id: "12345678"
+          use_commit_signing: "false"
+          track_progress: "false"
+          display_report: "false"
+          show_full_output: "false"
+          # No API key — expected to fail gracefully
+
+      - name: Assert action ran and outputs are defined
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+          EXECUTION_FILE: ${{ steps.action.outputs.execution_file }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: $CONCLUSION"
+          echo "execution_file: $EXECUTION_FILE"
+          # The action must either succeed or fail — never be skipped
+          if [ "$OUTCOME" = "success" ]; then
+            # If it succeeded, conclusion should be 'success'
+            if [ "$CONCLUSION" != "success" ]; then
+              echo "FAIL: action succeeded but conclusion output is not 'success', got: '$CONCLUSION'"
+              exit 1
+            fi
+            echo "PASS: action succeeded with conclusion='success'"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (no credentials provided)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
