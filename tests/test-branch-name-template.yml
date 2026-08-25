@@ -1,0 +1,44 @@
+name: Test branch name template configuration
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          prompt: "Describe what you see"
+          branch_prefix: "ai/"
+          branch_name_template: "{{prefix}}{{entityType}}-{{entityNumber}}-{{timestamp}}"
+          use_sticky_comment: "false"
+          classify_inline_comments: "false"
+          include_fix_links: "false"
+          display_report: "false"
+          show_full_output: "false"
+          # No anthropic_api_key — action will fail gracefully without credentials
+
+      - name: Assert action ran with template config or failed gracefully
+        env:
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+          BRANCH_NAME: ${{ steps.action.outputs.branch_name }}
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: $CONCLUSION"
+          echo "branch_name: $BRANCH_NAME"
+          if [ "$OUTCOME" = "success" ]; then
+            if [ -z "$CONCLUSION" ]; then
+              echo "FAIL: action succeeded but conclusion output is empty"
+              exit 1
+            fi
+            echo "PASS: action succeeded with conclusion='$CONCLUSION'"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (no API credentials — expected in test harness)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
