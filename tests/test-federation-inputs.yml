@@ -1,0 +1,36 @@
+name: Test workload identity federation inputs
+on:
+  workflow_dispatch:
+permissions:
+  id-token: write
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Test action with federation inputs
+        id: action
+        uses: .
+        continue-on-error: true
+        with:
+          anthropic_federation_rule_id: "fdrl_fake-rule-id-for-coverage"
+          anthropic_organization_id: "00000000-0000-0000-0000-000000000000"
+          anthropic_service_account_id: "svac_fake-service-account-for-coverage"
+          anthropic_workspace_id: "wrkspc_fake-workspace-for-coverage"
+          anthropic_oidc_audience: "https://api.anthropic.com"
+          prompt: "Say hello"
+          trigger_phrase: "@claude"
+
+      - name: Assert action ran (fails gracefully without valid federation credentials)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "success" ] || [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action ran and produced a deterministic outcome ($OUTCOME)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

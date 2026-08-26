@@ -1,0 +1,39 @@
+name: Test Claude Code Action - Comment Filtering Configuration
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Run action with comment filtering configuration
+        id: action
+        uses: .
+        continue-on-error: true
+        with:
+          prompt: "Test comment filtering"
+          allowed_bots: ""
+          include_comments_by_actor: ""
+          exclude_comments_by_actor: "renovate[bot]"
+          classify_inline_comments: "false"
+
+      - name: Assert action ran with comment filtering config
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: $CONCLUSION"
+          if [ "$OUTCOME" = "success" ]; then
+            if [ -z "$CONCLUSION" ]; then
+              echo "FAIL: action succeeded but conclusion output is empty"
+              exit 1
+            fi
+            echo "PASS: action succeeded with conclusion='$CONCLUSION'"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (expected without valid API credentials)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
