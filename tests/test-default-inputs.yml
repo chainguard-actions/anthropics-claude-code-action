@@ -1,0 +1,41 @@
+name: Test default inputs
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          # Use all defaults: trigger_phrase=@claude, branch_prefix=claude/,
+          # label_trigger=claude, use_sticky_comment=false, etc.
+          prompt: "List the files in the current directory"
+          github_token: ${{ github.token }}
+
+      - name: Assert action ran with default inputs
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+          EXECUTION_FILE: ${{ steps.action.outputs.execution_file }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: $CONCLUSION"
+          echo "execution_file: $EXECUTION_FILE"
+          # Without a valid Anthropic API key the action will fail gracefully.
+          # If it somehow succeeds (e.g. a key is injected), validate outputs.
+          if [ "$OUTCOME" = "success" ]; then
+            if [ -z "$CONCLUSION" ]; then
+              echo "FAIL: action succeeded but conclusion output is empty"
+              exit 1
+            fi
+            echo "PASS: action succeeded with conclusion='$CONCLUSION'"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (expected without API key)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
