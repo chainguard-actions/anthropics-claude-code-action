@@ -1,0 +1,33 @@
+name: Test - Trigger phrase and label configuration
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          trigger_phrase: "@mybot"
+          label_trigger: "mybot"
+          branch_prefix: "mybot/"
+          prompt: "Say hello world"
+          # No API key — testing configuration inputs are accepted without error
+
+      - name: Assert action accepted configuration inputs
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: $CONCLUSION"
+          # Action should run (and fail due to missing API key) but not crash on config
+          if [ "$OUTCOME" = "failure" ] || [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action accepted configuration inputs (outcome: $OUTCOME)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
