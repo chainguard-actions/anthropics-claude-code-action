@@ -1,0 +1,12 @@
+{
+  "action": "created",
+  "issue": {
+    "number": 42,
+    "title": "A plain issue (not a PR)",
+    "body": "This is a regular issue, not a pull request."
+  },
+  "comment": {
+    "id": 1,
+    "body": "A comment on a plain issue"
+  }
+}

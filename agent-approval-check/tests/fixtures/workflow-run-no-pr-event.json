@@ -1,0 +1,10 @@
+{
+  "action": "completed",
+  "workflow_run": {
+    "id": 12345,
+    "name": "CI",
+    "status": "completed",
+    "conclusion": "success",
+    "pull_requests": []
+  }
+}
