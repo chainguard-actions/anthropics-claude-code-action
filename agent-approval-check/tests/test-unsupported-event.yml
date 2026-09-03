@@ -1,0 +1,32 @@
+name: Test unsupported event fails gracefully
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          github_token: ${{ github.token }}
+          required_approvals: "2"
+          agent_emails: "noreply@anthropic.com"
+          agent_logins: "claude[bot],claude-code[bot]"
+
+      - name: Assert action failed (workflow_dispatch is not a supported event)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action correctly failed for unsupported event (workflow_dispatch)"
+          elif [ "$OUTCOME" = "success" ]; then
+            echo "FAIL: expected failure for unsupported event, but action succeeded"
+            exit 1
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME' (expected failure)"
+            exit 1
+          fi

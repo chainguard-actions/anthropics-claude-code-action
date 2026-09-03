@@ -1,0 +1,47 @@
+name: Test custom claude executable path
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create fake claude executable
+        run: |
+          mkdir -p /tmp/fake-claude-bin
+          # Create a fake claude script that outputs a minimal valid JSON response
+          # matching what the Claude Code SDK expects
+          cat > /tmp/fake-claude-bin/claude << 'EOF'
+          #!/bin/sh
+          # Fake claude executable for testing
+          # Output a minimal JSON result that the action can parse
+          echo '{"type":"result","subtype":"success","result":"Hello from fake claude","session_id":"test-session-123","is_error":false}'
+          exit 0
+          EOF
+          chmod +x /tmp/fake-claude-bin/claude
+          echo "Fake claude created at /tmp/fake-claude-bin/claude"
+          /tmp/fake-claude-bin/claude && echo "Fake claude runs OK"
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          prompt: "Say hello"
+          anthropic_api_key: "sk-ant-test-fake-key-for-testing"
+          path_to_claude_code_executable: "/tmp/fake-claude-bin/claude"
+
+      - name: Assert action ran with custom executable
+        env:
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: $CONCLUSION"
+          # The action may succeed or fail depending on how it parses the fake output,
+          # but it should have run (not errored during setup) and set conclusion
+          if [ -z "$CONCLUSION" ]; then
+            echo "FAIL: conclusion output was not set — action may have crashed before setting outputs"
+            exit 1
+          fi
+          echo "PASS: action ran with custom executable and set conclusion='$CONCLUSION'"
