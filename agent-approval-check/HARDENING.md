@@ -16,11 +16,11 @@ Action **anthropics--claude-code-action--agent-approval-check/v1.0.212** was har
 
 ### script-injection (severity: high)
 
-Sub-rule (a): A ${{ ... }} expression is directly interpolated inside a `run:` shell command string. The step `run: python "${{ github.action_path }}/agent_approval_check.py"` embeds `${{ github.action_path }}` directly in the shell command. While `github.action_path` is not attacker-controlled, any `${{ ... }}` expression inside a `run:` block is a script-injection risk because the value flows through YAML template substitution before the shell ever sees it. The safe fix is to use the pre-set environment variable `$GITHUB_ACTION_PATH` instead: `run: python "$GITHUB_ACTION_PATH/agent_approval_check.py"`
+Sub-rule (a) violation: A `${{ }}` GitHub Actions expression is interpolated directly inside a `run:` shell command string. The step runs `python "${{ github.action_path }}/agent_approval_check.py"`, embedding `${{ github.action_path }}` directly in the shell command. Per the script-injection check, ANY `${{ ... }}` expression directly inside a `run:` block is a finding, regardless of which context it reads from. The safe fix is to use the pre-set environment variable `$GITHUB_ACTION_PATH` instead: `python "$GITHUB_ACTION_PATH/agent_approval_check.py"`
 
 Locations:
 
-- `action.yml:59`
+- `action.yml:57`
 
 ## Iteration Notes
 
@@ -30,5 +30,5 @@ Locations:
 
 **Notes:**
 
-Replaced `${{ github.action_path }}` in the `run:` shell command with the pre-set environment variable `$GITHUB_ACTION_PATH`. The command changed from `python "${{ github.action_path }}/agent_approval_check.py"` to `python "$GITHUB_ACTION_PATH/agent_approval_check.py"`. This avoids YAML template substitution of the expression before the shell processes it, eliminating the script-injection vector.
+Replaced `${{ github.action_path }}` in the `run:` shell command at action.yml line 57 with the pre-set environment variable `$GITHUB_ACTION_PATH`. GitHub Actions automatically sets this variable to the same value, so behavior is unchanged but the expression is no longer interpolated directly into the shell string.
 
