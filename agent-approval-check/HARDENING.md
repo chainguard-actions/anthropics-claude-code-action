@@ -16,11 +16,11 @@ Action **anthropics--claude-code-action--agent-approval-check/v1.0.213** was har
 
 ### script-injection (severity: high)
 
-Sub-rule (a): A ${{ }} expression is directly interpolated inside a run: shell command string. The step at line 54 of action.yml uses `run: python "${{ github.action_path }}/agent_approval_check.py"`, which injects the `github.action_path` context value directly into the shell command before the shell ever sees it. The safe pattern is to use the `$GITHUB_ACTION_PATH` environment variable instead (e.g., `run: python "$GITHUB_ACTION_PATH/agent_approval_check.py"`), which avoids template substitution in the shell command string entirely.
+Sub-rule (a) violation: A ${{ ... }} expression is directly interpolated inside a `run:` shell command string. The step runs: `python "${{ github.action_path }}/agent_approval_check.py"`. The `github.action_path` value flows through YAML template substitution before the shell sees it, making this a script-injection risk. The safe alternative is to use the pre-set environment variable `$GITHUB_ACTION_PATH` instead: `python "$GITHUB_ACTION_PATH/agent_approval_check.py"`
 
 Locations:
 
-- `action.yml:54`
+- `action.yml:57`
 
 ## Iteration Notes
 
@@ -30,5 +30,5 @@ Locations:
 
 **Notes:**
 
-Fixed script-injection in action.yml line 54: replaced `python "${{ github.action_path }}/agent_approval_check.py"` with `python "$GITHUB_ACTION_PATH/agent_approval_check.py"`. The $GITHUB_ACTION_PATH environment variable is automatically set by GitHub Actions and avoids template substitution in the shell command string, eliminating the injection risk.
+Replaced `python "${{ github.action_path }}/agent_approval_check.py"` with `python "$GITHUB_ACTION_PATH/agent_approval_check.py"` in action.yml line 57. The $GITHUB_ACTION_PATH environment variable is set by the GitHub Actions runner and is equivalent to github.action_path, but avoids the YAML template substitution that makes the ${{ }} form a script-injection risk.
 
