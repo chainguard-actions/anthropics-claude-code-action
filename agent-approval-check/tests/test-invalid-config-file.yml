@@ -1,0 +1,41 @@
+name: Test invalid config_file causes failure
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create invalid config file
+        run: |
+          mkdir -p /tmp/gh-config
+
+          # Write an invalid YAML config (agent_emails is a string, not a list)
+          cat > /tmp/gh-config/bad-config.yaml <<'EOF'
+          agent_emails: "this-should-be-a-list-not-a-string"
+          agent_app_logins:
+            - claude[bot]
+          excluded_approver_logins: []
+          exempt_head_branches: []
+          EOF
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          github_token: ${{ github.token }}
+          config_file: /tmp/gh-config/bad-config.yaml
+
+      - name: Assert action failed due to invalid config file
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action correctly failed with invalid config file"
+          else
+            echo "FAIL: expected failure for invalid config file but got '$OUTCOME'"
+            exit 1
+          fi

@@ -1,0 +1,30 @@
+name: Test empty agent identities fails
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          github_token: ${{ github.token }}
+          required_approvals: "1"
+          agent_emails: ""
+          agent_logins: ""
+
+      - name: Assert action failed due to empty agent identities
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action correctly failed when no agent identities are configured"
+          else
+            echo "FAIL: expected failure for empty agent identities but got '$OUTCOME'"
+            exit 1
+          fi

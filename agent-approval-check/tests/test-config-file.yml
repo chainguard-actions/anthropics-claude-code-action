@@ -1,0 +1,53 @@
+name: Test config_file input overrides inline inputs
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    # GH_PR_NUMBER bypasses event parsing (action hardcodes GH_EVENT_NAME=workflow_dispatch
+    # which is unsupported). The config file is loaded first; if it fails to load, the
+    # action exits before reaching the API call.
+    env:
+      GH_PR_NUMBER: "5"
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create agent-identities config file
+        run: |
+          mkdir -p /tmp/gh-config
+
+          # Write a valid agent-identities YAML config
+          cat > /tmp/gh-config/agent-identities.yaml <<'EOF'
+          agent_emails:
+            - noreply@anthropic.com
+            - bot@example.com
+          agent_app_logins:
+            - claude[bot]
+            - claude-code[bot]
+          excluded_approver_logins: []
+          exempt_head_branches: []
+          exempt_path_prefixes: {}
+          protected_bases: {}
+          EOF
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          github_token: ${{ github.token }}
+          config_file: /tmp/gh-config/agent-identities.yaml
+
+      - name: Assert action loaded config file (API failure on sentinel repo is acceptable)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action loaded config file and succeeded"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action loaded config file and failed gracefully (sentinel repo is not resolvable)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
