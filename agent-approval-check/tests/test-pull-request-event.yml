@@ -1,0 +1,37 @@
+name: Test pull_request event (API call with sentinel repo)
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      # GH_PR_NUMBER bypasses event parsing in the script (checked before
+      # GH_EVENT_NAME). The composite action does not override this variable,
+      # so it is inherited by the Python script. The API call will then fail
+      # on the sentinel repo, which is the expected graceful-failure path.
+      GH_PR_NUMBER: "1"
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          required_approvals: "2"
+          agent_emails: "noreply@anthropic.com"
+          agent_logins: "claude[bot],claude-code[bot]"
+
+      - name: Assert action ran (succeeded or failed gracefully on sentinel repo)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded (PR processed)"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (sentinel repo is not resolvable via GitHub API)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

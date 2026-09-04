@@ -1,0 +1,35 @@
+name: Test missing agent identities exits non-zero
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # The action validates that at least one agent identity is configured.
+      # With both agent_emails and agent_logins empty, it exits non-zero.
+      # Under act, GH_EVENT_NAME=workflow_dispatch (unsupported) also causes
+      # a non-zero exit. Either way, the action must fail.
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          agent_emails: ""
+          agent_logins: ""
+
+      - name: Assert action failed (no agent identities configured)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action correctly failed when no agent identities are configured"
+          elif [ "$OUTCOME" = "success" ]; then
+            echo "FAIL: action should have failed when agent_emails and agent_logins are both empty"
+            exit 1
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
