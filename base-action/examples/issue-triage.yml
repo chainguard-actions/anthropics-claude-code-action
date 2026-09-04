@@ -23,7 +23,7 @@ jobs:
           GITHUB_TOKEN_VALUE: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p /tmp/mcp-config
-          cat > /tmp/mcp-config/mcp-servers.json << 'EOF'
+          cat > /tmp/mcp-config/mcp-servers.json << EOF
           {
             "mcpServers": {
               "github": {
@@ -37,40 +37,31 @@ jobs:
                   "ghcr.io/github/github-mcp-server:sha-23fa0dd"
                 ],
                 "env": {
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": "placeholder"
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_TOKEN_VALUE"
                 }
               }
             }
           }
           EOF
-          # Replace placeholder with actual token value using env var (not interpolated into heredoc)
-          python3 -c "
-          import json, os
-          with open('/tmp/mcp-config/mcp-servers.json') as f:
-              config = json.load(f)
-          config['mcpServers']['github']['env']['GITHUB_PERSONAL_ACCESS_TOKEN'] = os.environ['GITHUB_TOKEN_VALUE']
-          with open('/tmp/mcp-config/mcp-servers.json', 'w') as f:
-              json.dump(config, f, indent=2)
-          "
 
       - name: Create triage prompt
         env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-          ISSUE_NUMBER_VALUE: ${{ github.event.issue.number }}
         run: |
           mkdir -p /tmp/claude-prompts
-          cat > /tmp/claude-prompts/triage-prompt.txt << 'EOF'
+          cat > /tmp/claude-prompts/triage-prompt.txt << EOF
           You're an issue triage assistant for GitHub issues. Your task is to analyze the issue and select appropriate labels from the provided list.
 
           IMPORTANT: Don't post any comments or messages to the issue. Your only action should be to apply labels.
 
           Issue Information:
-          - REPO: REPO_PLACEHOLDER
-          - ISSUE_NUMBER: ISSUE_NUMBER_PLACEHOLDER
+          - REPO: ${GITHUB_REPOSITORY}
+          - ISSUE_NUMBER: ${ISSUE_NUMBER}
 
           TASK OVERVIEW:
 
-          1. First, fetch the list of labels available in this repository by running: `gh label list`. Run exactly this command with nothing else.
+          1. First, fetch the list of labels available in this repository by running: \`gh label list\`. Run exactly this command with nothing else.
 
           2. Next, use the GitHub tools to get context about the issue:
              - You have access to these tools:
@@ -109,11 +100,6 @@ jobs:
           - Your ONLY action should be to apply labels using mcp__github__update_issue
           - It's okay to not add any labels if none are clearly applicable
           EOF
-          # Replace placeholders with actual values from env vars (not interpolated into heredoc)
-          safe_repo=$(printf '%s' "$GITHUB_REPOSITORY" | tr -d '\n\r')
-          safe_issue=$(printf '%s' "$ISSUE_NUMBER_VALUE" | tr -d '\n\r')
-          sed -i "s|REPO_PLACEHOLDER|${safe_repo}|g" /tmp/claude-prompts/triage-prompt.txt
-          sed -i "s|ISSUE_NUMBER_PLACEHOLDER|${safe_issue}|g" /tmp/claude-prompts/triage-prompt.txt
 
       - name: Run Claude Code for Issue Triage
         uses: anthropics/claude-code-base-action@e8132bc5e637a42c27763fc757faa37e1ee43b34 # beta
