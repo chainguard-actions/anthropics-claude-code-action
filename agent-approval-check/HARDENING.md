@@ -16,11 +16,11 @@ Action **anthropics--claude-code-action--agent-approval-check/v1.0.217** was har
 
 ### script-injection (severity: high)
 
-Rule (a) violation: A `${{ ... }}` expression is directly interpolated inside a `run:` shell command string. The step `run: python "${{ github.action_path }}/agent_approval_check.py"` embeds `${{ github.action_path }}` directly in the shell command before the shell ever sees it. Any `${{ ... }}` expression inside a `run:` block is a script-injection risk because the value is substituted by the Actions template engine before the shell parses the command. The safe alternative is to use the pre-set environment variable `$GITHUB_ACTION_PATH` instead: `run: python "$GITHUB_ACTION_PATH/agent_approval_check.py"`.
+Rule (a) violation: A ${{ }} expression is interpolated directly inside a `run:` shell command string. The step runs: `python "${{ github.action_path }}/agent_approval_check.py"`. Even though `github.action_path` is GitHub-controlled, any `${{ ... }}` expression inside a `run:` block flows through YAML template substitution before the shell processes it, making it a script-injection risk. The fix is to use the pre-set environment variable `$GITHUB_ACTION_PATH` instead: `python "$GITHUB_ACTION_PATH/agent_approval_check.py"`
 
 Locations:
 
-- `action.yml:63`
+- `action.yml:52`
 
 ## Iteration Notes
 
@@ -30,5 +30,5 @@ Locations:
 
 **Notes:**
 
-Replaced `${{ github.action_path }}` in the `run:` shell command with the pre-set environment variable `$GITHUB_ACTION_PATH`. The GitHub Actions runner always sets GITHUB_ACTION_PATH to the action's directory, so this is a safe, equivalent substitution that avoids template-engine interpolation into the shell command string.
+Replaced `python "${{ github.action_path }}/agent_approval_check.py"` with `python "$GITHUB_ACTION_PATH/agent_approval_check.py"` in hardened/action/action.yml line 52. The GitHub Actions runner pre-sets $GITHUB_ACTION_PATH as an environment variable, so using it directly in the shell avoids the YAML template substitution that makes ${{ }} expressions a script-injection risk.
 

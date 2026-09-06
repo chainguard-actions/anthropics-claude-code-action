@@ -23,7 +23,7 @@ jobs:
           GITHUB_TOKEN_VALUE: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p /tmp/mcp-config
-          cat > /tmp/mcp-config/mcp-servers.json << 'EOF'
+          cat > /tmp/mcp-config/mcp-servers.json << EOF
           {
             "mcpServers": {
               "github": {
@@ -37,25 +37,20 @@ jobs:
                   "ghcr.io/github/github-mcp-server:sha-23fa0dd"
                 ],
                 "env": {
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": "placeholder"
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_TOKEN_VALUE"
                 }
               }
             }
           }
           EOF
-          # Replace placeholder with actual token value using jq to safely inject the secret
-          jq --arg token "$GITHUB_TOKEN_VALUE" \
-            '.mcpServers.github.env.GITHUB_PERSONAL_ACCESS_TOKEN = $token' \
-            /tmp/mcp-config/mcp-servers.json > /tmp/mcp-config/mcp-servers.json.tmp
-          mv /tmp/mcp-config/mcp-servers.json.tmp /tmp/mcp-config/mcp-servers.json
 
       - name: Create triage prompt
         env:
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
           GITHUB_REPOSITORY: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
           mkdir -p /tmp/claude-prompts
-          cat > /tmp/claude-prompts/triage-prompt.txt << EOF
+          cat > /tmp/claude-prompts/triage-prompt.txt << 'EOF'
           You're an issue triage assistant for GitHub issues. Your task is to analyze the issue and select appropriate labels from the provided list.
 
           IMPORTANT: Don't post any comments or messages to the issue. Your only action should be to apply labels.
@@ -105,6 +100,9 @@ jobs:
           - Your ONLY action should be to apply labels using mcp__github__update_issue
           - It's okay to not add any labels if none are clearly applicable
           EOF
+          # Substitute env vars into the prompt file
+          sed -i "s|\${GITHUB_REPOSITORY}|$GITHUB_REPOSITORY|g" /tmp/claude-prompts/triage-prompt.txt
+          sed -i "s|\${ISSUE_NUMBER}|$ISSUE_NUMBER|g" /tmp/claude-prompts/triage-prompt.txt
 
       - name: Run Claude Code for Issue Triage
         uses: anthropics/claude-code-base-action@e8132bc5e637a42c27763fc757faa37e1ee43b34 # beta
