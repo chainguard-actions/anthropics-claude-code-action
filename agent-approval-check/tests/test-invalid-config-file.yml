@@ -1,0 +1,38 @@
+name: Test invalid config_file path fails
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Pre-install Python dependencies
+        run: pip install 'httpx==0.28.1' 'pyyaml==6.0.3' 'tenacity==9.1.4' --quiet || true
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          github_token: ${{ github.token }}
+          required_approvals: "2"
+          agent_emails: noreply@anthropic.com
+          agent_logins: claude[bot]
+          config_file: /nonexistent/path/agent-identities.yaml
+
+      - name: Assert action failed for missing config file
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # config_file points to a nonexistent path — the script fails when trying to open it.
+          # This happens before any event/API processing.
+          if [ "$OUTCOME" = "failure" ] || [ -z "$OUTCOME" ]; then
+            echo "PASS: action correctly failed when config_file path does not exist (outcome: ${OUTCOME:-empty})"
+          elif [ "$OUTCOME" = "success" ]; then
+            echo "FAIL: action should have failed for nonexistent config_file"
+            exit 1
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

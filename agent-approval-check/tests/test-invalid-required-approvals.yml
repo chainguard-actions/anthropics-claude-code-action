@@ -1,0 +1,37 @@
+name: Test invalid required_approvals value fails
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Pre-install Python dependencies
+        run: pip install 'httpx==0.28.1' 'pyyaml==6.0.3' 'tenacity==9.1.4' --quiet || true
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          github_token: ${{ github.token }}
+          required_approvals: "0"
+          agent_emails: noreply@anthropic.com
+          agent_logins: claude[bot],claude-code[bot]
+
+      - name: Assert action failed for invalid required_approvals
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # required_approvals=0 is invalid (must be >= 1).
+          # The script exits with code 1 before any event/API processing.
+          if [ "$OUTCOME" = "failure" ] || [ -z "$OUTCOME" ]; then
+            echo "PASS: action correctly failed when required_approvals=0 (outcome: ${OUTCOME:-empty})"
+          elif [ "$OUTCOME" = "success" ]; then
+            echo "FAIL: action should have failed for required_approvals=0"
+            exit 1
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
