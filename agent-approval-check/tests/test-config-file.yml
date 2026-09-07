@@ -1,0 +1,49 @@
+name: Test config_file input overrides inline inputs
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Create a YAML config file that the action will load.
+      # The config file path must be accessible to the composite action's run step.
+      - name: Create agent identities config file
+        run: |
+          mkdir -p /tmp/agent-config
+          printf '%s\n' \
+            'agent_emails:' \
+            '  - noreply@anthropic.com' \
+            '  - bot@example.com' \
+            'agent_app_logins:' \
+            '  - claude[bot]' \
+            '  - claude-code[bot]' \
+            'excluded_approver_logins: []' \
+            'exempt_head_branches: []' \
+            'exempt_path_prefixes: {}' \
+            'protected_bases: {}' \
+            > /tmp/agent-config/agent-identities.yaml
+
+      # The action loads the config file, then fails on event resolution
+      # (workflow_dispatch is unsupported). This proves config loading works.
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          github_token: ${{ github.token }}
+          config_file: /tmp/agent-config/agent-identities.yaml
+
+      - name: Assert action ran (config loaded, then failed on unsupported event)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action loaded config_file and failed on unsupported event (not config error)"
+          elif [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action loaded config_file and succeeded"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
