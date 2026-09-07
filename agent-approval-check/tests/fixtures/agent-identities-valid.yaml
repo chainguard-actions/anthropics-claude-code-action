@@ -1,0 +1,10 @@
+agent_emails:
+  - noreply@anthropic.com
+  - bot@example.com
+agent_app_logins:
+  - claude[bot]
+  - claude-code[bot]
+excluded_approver_logins: []
+exempt_head_branches: []
+exempt_path_prefixes: {}
+protected_bases: {}

@@ -1,0 +1,5 @@
+agent_emails: "not-a-list@example.com"
+agent_app_logins:
+  - claude[bot]
+excluded_approver_logins: []
+exempt_head_branches: []

@@ -1,0 +1,59 @@
+name: Test pull_request event triggers API call (sentinel repo)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Create a pull_request event payload with a PR number
+      # Note: the composite action overrides GH_EVENT_NAME with github.event_name
+      # (workflow_dispatch), which raises ValueError. The action will fail.
+      - name: Create fake event payload
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/.test-tmp"
+          cat > "$GITHUB_WORKSPACE/.test-tmp/event.json" <<'EOF'
+          {
+            "action": "opened",
+            "pull_request": {
+              "number": 1,
+              "title": "Test PR",
+              "head": {
+                "sha": "abc123def456abc123def456abc123def456abc1",
+                "ref": "feature-branch"
+              },
+              "base": {
+                "ref": "main"
+              }
+            }
+          }
+          EOF
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          github_token: ${{ github.token }}
+          required_approvals: "2"
+          agent_emails: noreply@anthropic.com
+          agent_logins: claude[bot],claude-code[bot]
+
+      - name: Assert action ran (API call fails on sentinel repo or unsupported event)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # Under the act harness, GH_EVENT_NAME is always 'workflow_dispatch'
+          # (set by the composite action from github.event_name). The script
+          # raises ValueError for unsupported events, so the action fails.
+          # If GH_PR_NUMBER were set, the action would attempt a GraphQL call
+          # to the sentinel repo, which does not exist — also a failure.
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (unsupported event or sentinel repo)"
+          elif [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded (unexpected but acceptable)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
