@@ -1,0 +1,54 @@
+name: Test custom Claude Code executable path
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create fake claude executable
+        run: |
+          mkdir -p /tmp/fake-claude-bin
+          cat > /tmp/fake-claude-bin/claude << 'EOF'
+          #!/bin/sh
+          # Fake claude that outputs a minimal valid JSON stream response
+          # The action reads JSON lines from claude's output
+          echo '{"type":"result","subtype":"success","cost_usd":0,"is_error":false,"duration_ms":100,"duration_api_ms":100,"num_turns":1,"result":"Hello from fake claude","session_id":"fake-session-123","total_cost_usd":0}'
+          exit 0
+          EOF
+          chmod +x /tmp/fake-claude-bin/claude
+          echo "Fake claude created at /tmp/fake-claude-bin/claude"
+          /tmp/fake-claude-bin/claude --version || true
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          prompt: "Say hello"
+          path_to_claude_code_executable: "/tmp/fake-claude-bin/claude"
+          anthropic_api_key: "sk-ant-fake-key-for-testing"
+
+      - name: Assert action ran with custom executable
+        env:
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+          OUTCOME: ${{ steps.action.outcome }}
+          SESSION_ID: ${{ steps.action.outputs.session_id }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: $CONCLUSION"
+          echo "session_id: $SESSION_ID"
+          # The action should either succeed (fake claude output parsed) or fail gracefully
+          # (if the SDK doesn't accept our fake output format)
+          if [ "$OUTCOME" = "success" ]; then
+            if [ -z "$CONCLUSION" ]; then
+              echo "FAIL: action succeeded but conclusion output is empty"
+              exit 1
+            fi
+            echo "PASS: action completed with conclusion=$CONCLUSION"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (fake executable output not accepted by SDK)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

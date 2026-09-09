@@ -1,0 +1,42 @@
+name: Test issue_comment on plain issue exits cleanly
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          github_token: ${{ github.token }}
+          required_approvals: "1"
+          agent_emails: "noreply@anthropic.com"
+          agent_logins: "claude[bot]"
+        env:
+          # The composite action sets GH_EVENT_NAME from github.event_name
+          # (workflow_dispatch), which is an unsupported event. Without
+          # GH_PR_NUMBER set, the script falls through to event parsing and
+          # raises ValueError — the action fails closed (non-zero exit).
+          # This verifies the fail-closed behavior when no PR context is available.
+          GH_PR_NUMBER: ""
+
+      - name: Assert action fails closed when no PR context is available
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # Under act, GH_EVENT_NAME is always workflow_dispatch (unsupported).
+          # Without GH_PR_NUMBER, the script raises ValueError and exits non-zero.
+          # This is the expected fail-closed behavior.
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed closed (no PR context, unsupported event)"
+          elif [ "$OUTCOME" = "success" ]; then
+            echo "FAIL: action should have failed when no PR context is available"
+            exit 1
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

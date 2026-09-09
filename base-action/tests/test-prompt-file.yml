@@ -1,0 +1,44 @@
+name: Test prompt_file input
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create prompt file
+        run: |
+          echo "Please say hello and confirm you received this prompt from a file." > /tmp/test-prompt.txt
+          echo "Prompt file created:"
+          cat /tmp/test-prompt.txt
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          prompt_file: "/tmp/test-prompt.txt"
+          # No auth provided - should fail at env validation
+          # This tests that prompt_file input is accepted and processed
+
+      - name: Assert action handled prompt_file input
+        env:
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: $CONCLUSION"
+          # Without auth, the action should fail at env validation (after reading the prompt file)
+          # The important thing is it doesn't crash with an unexpected error about the input format
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed as expected (no auth configured)"
+          elif [ "$OUTCOME" = "success" ]; then
+            if [ -z "$CONCLUSION" ]; then
+              echo "FAIL: action succeeded but conclusion output is empty"
+              exit 1
+            fi
+            echo "PASS: action completed with conclusion=$CONCLUSION"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

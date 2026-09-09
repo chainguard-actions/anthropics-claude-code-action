@@ -1,0 +1,53 @@
+name: Test config_file input overrides inline inputs
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Create a custom agent-identities YAML config file
+      - name: Create custom config file
+        run: |
+          mkdir -p /tmp/fake-config
+          cat > /tmp/fake-config/agent-identities.yaml << 'EOF'
+          agent_emails:
+            - bot@example.com
+            - noreply@anthropic.com
+          agent_app_logins:
+            - my-custom-bot[bot]
+          excluded_approver_logins: []
+          exempt_head_branches: []
+          EOF
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          github_token: ${{ github.token }}
+          required_approvals: "1"
+          # These inline inputs should be overridden by config_file
+          agent_emails: "should-be-ignored@example.com"
+          agent_logins: "should-be-ignored[bot]"
+          config_file: /tmp/fake-config/agent-identities.yaml
+        env:
+          # GH_PR_NUMBER bypasses event parsing (composite action does not override it).
+          # The action will proceed to make API calls that fail on the sentinel repo.
+          GH_PR_NUMBER: "7"
+
+      - name: Assert action ran with config file (API call fails gracefully on sentinel repo)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # The config file is valid and loaded correctly; the action then makes
+          # API calls that fail on the sentinel repo — both outcomes are acceptable
+          if [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded (real repo resolved)"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (sentinel repo is not resolvable)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

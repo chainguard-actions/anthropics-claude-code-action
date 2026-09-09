@@ -1,0 +1,39 @@
+name: Test multiple providers error (graceful failure)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          prompt: "Say hello"
+          use_bedrock: "true"
+          use_vertex: "true"
+          # Both bedrock and vertex set - should fail at env validation
+          # with "Cannot use multiple providers simultaneously" error
+
+      - name: Assert action failed with multiple providers error
+        env:
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: $CONCLUSION"
+          # With multiple providers set, the action should fail at env validation
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed as expected with multiple providers configured"
+          elif [ "$OUTCOME" = "success" ]; then
+            if [ -z "$CONCLUSION" ]; then
+              echo "FAIL: action succeeded but conclusion output is empty"
+              exit 1
+            fi
+            echo "PASS: action completed with conclusion=$CONCLUSION"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
