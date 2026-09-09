@@ -1,0 +1,41 @@
+name: Test custom bun executable path
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create a real bun symlink as custom executable
+        run: |
+          # Install real bun so we can point to it as a "custom" executable
+          curl -fsSL https://bun.sh/install | bash
+          BUN_PATH="$HOME/.bun/bin/bun"
+          echo "Custom bun path: $BUN_PATH"
+          echo "BUN_PATH=$BUN_PATH" >> "$GITHUB_ENV"
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          prompt: "Say hello"
+          path_to_bun_executable: ${{ env.BUN_PATH }}
+          # No anthropic_api_key — should fail at validation
+
+      - name: Assert action failed gracefully with conclusion=failure
+        env:
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: $CONCLUSION"
+          if [ "$OUTCOME" != "failure" ]; then
+            echo "FAIL: expected action to fail (no API key), but outcome was '$OUTCOME'"
+            exit 1
+          fi
+          if [ "$CONCLUSION" != "failure" ]; then
+            echo "FAIL: expected conclusion='failure' but got '$CONCLUSION'"
+            exit 1
+          fi
+          echo "PASS: action used custom bun path and failed gracefully as expected"

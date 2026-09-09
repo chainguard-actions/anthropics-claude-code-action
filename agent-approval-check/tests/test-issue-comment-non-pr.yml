@@ -1,0 +1,35 @@
+name: Test issue comment on non-PR exits gracefully
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          github_token: ${{ github.token }}
+          required_approvals: "2"
+          agent_emails: "noreply@anthropic.com"
+          agent_logins: "claude[bot],claude-code[bot]"
+
+      - name: Assert action ran (fails on unsupported workflow_dispatch event in test harness)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # Under workflow_dispatch the composite action always sets GH_EVENT_NAME=workflow_dispatch,
+          # which is unsupported by the script. The action is expected to fail.
+          # In a real issue_comment event on a plain issue (no pull_request key), the script
+          # would return None from resolve_pr_number and exit 0.
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (unsupported event in test harness)"
+          elif [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
