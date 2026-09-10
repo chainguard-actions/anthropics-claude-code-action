@@ -1,0 +1,49 @@
+name: Test partial workload identity federation error
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          prompt: "Say hello"
+          # Only federation_rule_id set, missing anthropic_organization_id
+          # This should trigger the "partial workload identity" error path
+          anthropic_federation_rule_id: "fdrl_test_rule_id_only"
+          # anthropic_organization_id intentionally omitted
+
+      - name: Assert action failed due to partial workload identity config
+        env:
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: $CONCLUSION"
+          # The action must fail because only one of the two required workload identity fields is set
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed as expected (partial workload identity config)"
+          elif [ "$OUTCOME" = "success" ]; then
+            echo "FAIL: action should have failed with partial workload identity error"
+            exit 1
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
+
+      - name: Assert conclusion output reflects failure
+        env:
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+        run: |
+          echo "conclusion: $CONCLUSION"
+          if [ "$CONCLUSION" = "failure" ] || [ -z "$CONCLUSION" ]; then
+            echo "PASS: conclusion is '$CONCLUSION' (acceptable on workload identity validation failure)"
+          else
+            echo "FAIL: expected conclusion=failure but got '$CONCLUSION'"
+            exit 1
+          fi
