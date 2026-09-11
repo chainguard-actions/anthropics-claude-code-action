@@ -1,0 +1,35 @@
+name: Test prompt_file input
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create prompt file
+        run: |
+          echo "What is 2 + 2?" > /tmp/test-prompt.txt
+          echo "Prompt file created at /tmp/test-prompt.txt"
+
+      - name: Run action with prompt_file input (no API key)
+        id: action
+        uses: .
+        continue-on-error: true
+        with:
+          prompt_file: "/tmp/test-prompt.txt"
+          # No anthropic_api_key — action should fail at validation
+
+      - name: Assert action failed gracefully (no API key)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: $CONCLUSION"
+          if [ "$OUTCOME" != "failure" ]; then
+            echo "FAIL: expected action to fail without API key, got outcome='$OUTCOME'"
+            exit 1
+          fi
+          echo "PASS: action failed as expected (prompt_file accepted, no API key)"

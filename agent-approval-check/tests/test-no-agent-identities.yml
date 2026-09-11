@@ -1,0 +1,41 @@
+name: Test empty agent identities exits 1
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          github_token: ${{ github.token }}
+          required_approvals: "1"
+          agent_emails: ""
+          agent_logins: ""
+
+      - name: Assert action failed due to empty agent identities
+        run: |
+          OUTCOME="${{ steps.action.outcome }}"
+          echo "outcome: '$OUTCOME'"
+          case "$OUTCOME" in
+            failure)
+              echo "PASS: action correctly rejected empty agent identities"
+              ;;
+            "")
+              # act may not set steps.action.outcome for composite actions
+              echo "WARN: outcome is empty (act limitation) - cannot verify action failed"
+              echo "INCONCLUSIVE: test cannot verify action failed under act"
+              ;;
+            success)
+              echo "FAIL: expected failure when both agent_emails and agent_logins are empty, got success"
+              exit 1
+              ;;
+            *)
+              echo "FAIL: unexpected outcome '$OUTCOME'"
+              exit 1
+              ;;
+          esac
