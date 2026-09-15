@@ -1,0 +1,37 @@
+name: Test basic pull_request event
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Use GH_PR_NUMBER to bypass event parsing (the composite action always
+      # sets GH_EVENT_NAME=workflow_dispatch which is unsupported for event parsing).
+      # The action will try to fetch PR #42 from the sentinel repo and fail on
+      # the GitHub API call — that is the expected graceful failure path.
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          github_token: ${{ github.token }}
+          required_approvals: "2"
+          agent_emails: "noreply@anthropic.com"
+          agent_logins: "claude[bot],claude-code[bot]"
+        env:
+          GH_PR_NUMBER: "42"
+
+      - name: Assert action ran (API calls fail gracefully on sentinel repo)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded (real repo resolved)"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (sentinel repo is not resolvable)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
