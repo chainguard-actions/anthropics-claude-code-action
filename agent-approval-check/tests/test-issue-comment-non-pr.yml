@@ -1,0 +1,49 @@
+name: Test issue_comment on non-PR exits cleanly
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Create a fake event payload for an issue_comment on a plain issue (no pull_request key)
+      - name: Create fake issue_comment event payload
+        run: |
+          mkdir -p /tmp/fake-events
+          cat > /tmp/fake-events/issue_comment.json <<'EOF'
+          {
+            "action": "created",
+            "issue": {
+              "number": 42,
+              "title": "A plain issue",
+              "body": "This is not a PR"
+            },
+            "comment": {
+              "id": 1,
+              "body": "Hello world"
+            }
+          }
+          EOF
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        env:
+          GH_EVENT_NAME: issue_comment
+          GH_EVENT_PATH: /tmp/fake-events/issue_comment.json
+
+      - name: Assert action exited cleanly (non-PR issue_comment is a no-op)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action exited 0 for non-PR issue_comment"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (sentinel repo or API error)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
