@@ -1,0 +1,42 @@
+name: Test basic prompt invocation
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          prompt: "Say hello world"
+          # No anthropic_api_key provided — action should fail gracefully
+
+      - name: Assert action ran and failed gracefully (no API key)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: $CONCLUSION"
+          # Without an API key the action is expected to fail.
+          # It must not produce an unexpected outcome (skipped = bug).
+          if [ "$OUTCOME" = "skipped" ]; then
+            echo "FAIL: action was skipped — unexpected"
+            exit 1
+          fi
+          if [ "$OUTCOME" = "success" ]; then
+            # If somehow it succeeded, conclusion must be set
+            if [ -z "$CONCLUSION" ]; then
+              echo "FAIL: action succeeded but conclusion output is empty"
+              exit 1
+            fi
+            echo "PASS: action succeeded with conclusion=$CONCLUSION"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully as expected (no API key)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
