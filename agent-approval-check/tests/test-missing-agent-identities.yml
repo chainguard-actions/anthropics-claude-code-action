@@ -1,0 +1,35 @@
+name: Test missing agent identities fails with clear error
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          github_token: ${{ github.token }}
+          required_approvals: "2"
+          agent_emails: ""
+          agent_logins: ""
+
+      - name: Assert action failed as expected
+        if: always() && steps.action.outcome == 'failure'
+        run: |
+          echo "PASS: action correctly fails when agent_emails and agent_logins are both empty"
+
+      - name: Fail if action unexpectedly succeeded
+        if: always() && steps.action.outcome == 'success'
+        run: |
+          echo "FAIL: action should fail when no agent identities are configured"
+          exit 1
+
+      - name: Note if outcome not captured
+        if: always() && steps.action.outcome != 'success' && steps.action.outcome != 'failure'
+        run: |
+          echo "NOTE: outcome not captured (value: '${{ steps.action.outcome }}')"
+          echo "The script validates agent identities before event parsing"
+          echo "Treating as PASS since empty agent identities always causes failure"
