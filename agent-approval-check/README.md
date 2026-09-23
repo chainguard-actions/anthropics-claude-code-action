@@ -121,3 +121,7 @@ A human counts as an approver by either:
 - **No checkout of PR code.** The action never checks out the PR's branch;
   it reads PR metadata via the GitHub API, so the usual
   `pull_request_target` code-execution risk does not apply.
+
+## Privacy
+
+This Action contacts Chainguard's licensing server to verify authorization. Connection metadata (IP address, GitHub repository identifier, timestamp, and any metadata encoded in the auth token) is transmitted to Chainguard, Inc. even if authorization is denied in accordance with our [Privacy Notice](https://www.chainguard.dev/legal/privacy-notice)
