@@ -16,7 +16,13 @@ Action **anthropics--claude-code-action--agent-approval-check/v1.0.226** was har
 
 ### script-injection (severity: high)
 
-Sub-rule (a): A ${{ ... }} expression is directly interpolated inside a `run:` shell command string. The step runs: `python "${{ github.action_path }}/agent_approval_check.py"`. The `github.action_path` value flows through YAML template substitution before the shell ever sees it, making this a script-injection risk. It should be replaced with the safe env-var equivalent `$GITHUB_ACTION_PATH` (which GitHub Actions pre-populates as an environment variable), e.g.: `run: python "$GITHUB_ACTION_PATH/agent_approval_check.py"`
+Sub-rule (a) violation: A `${{ }}` expression is interpolated directly inside a `run:` shell command string. The offending line is:
+
+    run: python "${{ github.action_path }}/agent_approval_check.py"
+
+Although `github.action_path` is not typically attacker-controlled, any `${{ ... }}` expression interpolated directly into a `run:` block is a script-injection risk because the value is substituted by the GitHub Actions template engine before the shell ever sees it — bypassing shell quoting. The safe fix is to use the pre-set environment variable `$GITHUB_ACTION_PATH` instead:
+
+    run: python "$GITHUB_ACTION_PATH/agent_approval_check.py"
 
 Locations:
 
@@ -30,5 +36,5 @@ Locations:
 
 **Notes:**
 
-Fixed script-injection in hardened/action/action.yml line 57: replaced `python "${{ github.action_path }}/agent_approval_check.py"` with `python "$GITHUB_ACTION_PATH/agent_approval_check.py"`. GitHub Actions pre-populates $GITHUB_ACTION_PATH as a safe environment variable, so there is no need to use the ${{ }} template expression which flows through YAML substitution before the shell sees it.
+Replaced `python "${{ github.action_path }}/agent_approval_check.py"` with `python "$GITHUB_ACTION_PATH/agent_approval_check.py"` in hardened/action/action.yml line 57. The pre-set `$GITHUB_ACTION_PATH` environment variable is equivalent in value but avoids template-engine interpolation into the shell command string, eliminating the script-injection risk.
 
