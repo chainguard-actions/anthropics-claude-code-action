@@ -16,7 +16,7 @@ Action **anthropics--claude-code-action--agent-approval-check/v1.0.223** was har
 
 ### script-injection (severity: high)
 
-Sub-rule (a): A ${{ }} expression is directly interpolated inside a `run:` shell command string. The step runs: `python "${{ github.action_path }}/agent_approval_check.py"`. While `github.action_path` is not typically attacker-controlled, any `${{ ... }}` expression interpolated directly into a `run:` block bypasses shell quoting and is a script-injection risk per the check rules. The value is substituted by the Actions template engine before the shell ever sees it, meaning special characters in the path could be interpreted by the shell. The fix is to use the `$GITHUB_ACTION_PATH` environment variable instead: `python "$GITHUB_ACTION_PATH/agent_approval_check.py"`
+Sub-rule (a): A ${{ }} expression is interpolated directly inside a `run:` shell command string. Line 57 of action.yml contains: `python "${{ github.action_path }}/agent_approval_check.py"`. Although `github.action_path` is not attacker-controlled, any `${{ ... }}` expression directly inside a `run:` block is a script-injection violation — the value flows through YAML template substitution before the shell ever sees it. The fix is to use the environment variable `$GITHUB_ACTION_PATH` instead: `python "$GITHUB_ACTION_PATH/agent_approval_check.py"`
 
 Locations:
 
@@ -30,5 +30,5 @@ Locations:
 
 **Notes:**
 
-Replaced `python "${{ github.action_path }}/agent_approval_check.py"` with `python "$GITHUB_ACTION_PATH/agent_approval_check.py"` in action.yml line 57. The $GITHUB_ACTION_PATH environment variable is set automatically by GitHub Actions and is safe to reference directly in shell scripts, avoiding the template-engine substitution that creates script-injection risk.
+Replaced `python "${{ github.action_path }}/agent_approval_check.py"` with `python "$GITHUB_ACTION_PATH/agent_approval_check.py"` in hardened/action/action.yml line 57. The built-in $GITHUB_ACTION_PATH environment variable is always set by the GitHub Actions runner and provides the same value as `github.action_path` without requiring a ${{ }} template expression inside the run: shell command.
 

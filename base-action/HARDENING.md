@@ -10,56 +10,54 @@
 
 **Harden Agent Version:** `2`
 
-Action **anthropics--claude-code-action--base-action/v1.0.223** was hardened automatically. 4 finding(s) were identified and resolved across 1 iteration(s).
+Action **anthropics--claude-code-action--base-action/v1.0.223** was hardened automatically. 2 finding(s) were identified and resolved across 2 iteration(s).
 
 ## Findings Fixed
 
 ### unsafe-shell (severity: high)
 
-The 'Install Claude Code' step pipes a remote install script directly to bash without first downloading and inspecting it: `curl -fsSL https://claude.ai/install.sh | bash -s -- $CLAUDE_CODE_VERSION`. This pattern executes whatever the remote server returns, making the action vulnerable to supply-chain attacks if the remote URL is compromised. The pattern appears twice — once inside a `timeout` wrapper and once in the else branch.
+The 'Install Claude Code' step pipes remote content directly to bash without first downloading to a file. Two occurrences: (1) inside a `timeout` wrapper: `timeout ... bash -c "curl -fsSL https://claude.ai/install.sh | bash -s -- $CLAUDE_CODE_VERSION"`, and (2) in the else branch: `curl -fsSL https://claude.ai/install.sh | bash -s -- "$CLAUDE_CODE_VERSION"`. If the remote URL is compromised or redirected, arbitrary code executes on the runner immediately.
 
 Locations:
 
-- `action.yml:148`
 - `action.yml:151`
+- `action.yml:153`
 
 ### github-env-injection (severity: high)
 
-Two steps write values derived from user-controlled inputs to $GITHUB_PATH without sanitization (no `printf '%s' ... | tr -d '\n\r'` step). (1) 'Setup Custom Bun Path': `PATH_TO_BUN_EXECUTABLE` comes from `inputs.path_to_bun_executable`; the script computes `BUN_DIR=$(dirname "$PATH_TO_BUN_EXECUTABLE")` and then writes `echo "$BUN_DIR" >> "$GITHUB_PATH"` — an attacker-supplied newline in the input can inject arbitrary entries into PATH. (2) 'Install Claude Code': `PATH_TO_CLAUDE_CODE_EXECUTABLE` comes from `inputs.path_to_claude_code_executable`; similarly `CLAUDE_DIR=$(dirname "$PATH_TO_CLAUDE_CODE_EXECUTABLE")` is written to `$GITHUB_PATH` without sanitization.
+Two steps write values derived from user-controlled inputs to $GITHUB_PATH without the required sanitization (`printf '%s' ... | tr -d '\n\r'`).
+
+(1) 'Setup Custom Bun Path' step: `inputs.path_to_bun_executable` is placed into the `PATH_TO_BUN_EXECUTABLE` env var, then `BUN_DIR=$(dirname "$PATH_TO_BUN_EXECUTABLE")` is computed and written unsanitized to $GITHUB_PATH via `echo "$BUN_DIR" >> "$GITHUB_PATH"`. A newline in the input value can inject arbitrary entries into PATH.
+
+(2) 'Install Claude Code' step: `inputs.path_to_claude_code_executable` is placed into `PATH_TO_CLAUDE_CODE_EXECUTABLE`, then `CLAUDE_DIR=$(dirname "$PATH_TO_CLAUDE_CODE_EXECUTABLE")` is written unsanitized to $GITHUB_PATH via `echo "$CLAUDE_DIR" >> "$GITHUB_PATH"`. Same injection risk applies.
 
 Locations:
 
-- `action.yml:133`
-- `action.yml:163`
-
-### script-injection (severity: high)
-
-Two `run:` blocks in examples/issue-triage.yml interpolate GitHub Actions expressions directly into shell command strings. GitHub Actions template substitution (`${{ }}`) occurs before the shell executes, so even content inside a heredoc is expanded by the runner. (a) 'Setup GitHub MCP Server' step: `"GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GITHUB_TOKEN }}"` is interpolated directly into the shell script. (b) 'Create triage prompt' step: `- ISSUE_NUMBER: ${{ github.event.issue.number }}` is interpolated directly into the shell script — an issue number is normally numeric but the pattern is still a direct expression interpolation in a run: block.
-
-Locations:
-
-- `examples/issue-triage.yml:33`
-- `examples/issue-triage.yml:48`
-
-### unpinned-uses (severity: high)
-
-examples/issue-triage.yml references `anthropics/claude-code-base-action@beta`, which uses a mutable branch name (`beta`) rather than a full 40-character commit SHA. This means the action code can change at any time without notice, creating a supply-chain risk.
-
-Locations:
-
-- `examples/issue-triage.yml:97`
+- `action.yml:131`
+- `action.yml:168`
 
 ## Iteration Notes
 
 ### Iteration 1
 
-**Fixes applied:** unsafe-shell, github-env-injection, script-injection, unpinned-uses
+**Fixes applied:** unsafe-shell, github-env-injection
 
 **Notes:**
 
-Fixed all four findings:
-1. unsafe-shell (action.yml): Replaced both `curl | bash -s -- $VERSION` patterns with download-then-execute: `curl -fsSL ... -o "$INSTALL_SCRIPT" && bash "$INSTALL_SCRIPT" "$CLAUDE_CODE_VERSION"`. Dropped the `--` (it was the shell's option terminator, not the script's). Applied to both the timeout branch and the plain else branch.
-2. github-env-injection (action.yml): Added `printf '%s' ... | tr -d '\n\r'` sanitization before writing BUN_DIR and CLAUDE_DIR to $GITHUB_PATH in both affected steps.
-3. script-injection (examples/issue-triage.yml): Moved `${{ secrets.GITHUB_TOKEN }}` and `${{ github.event.issue.number }}` out of run: blocks into step-level env: blocks, changed heredoc delimiters from quoted 'EOF' to unquoted EOF so shell variables expand, and referenced the values via plain env vars ($GITHUB_TOKEN_VALUE, $ISSUE_NUMBER).
-4. unpinned-uses (examples/issue-triage.yml): Pinned `anthropics/claude-code-base-action@beta` to full SHA `e8132bc5e637a42c27763fc757faa37e1ee43b34 # beta`.
+Fixed two security findings in hardened/action/action.yml:
+
+1. unsafe-shell (lines 151, 153): Replaced both `curl ... | bash -s -- $VERSION` patterns with a download-then-execute approach. The script is downloaded to a mktemp file, then executed as `bash "$INSTALL_SCRIPT" "$CLAUDE_CODE_VERSION"` (dropping the `--` which was the shell's option terminator). The temp file is cleaned up after the loop.
+
+2. github-env-injection (lines 131, 168): Added sanitization before writing to $GITHUB_PATH in both affected steps. In 'Setup Custom Bun Path': `safe_bun_dir=$(printf '%s' "$BUN_DIR" | tr -d '\n\r')` then write `$safe_bun_dir`. In 'Install Claude Code' else branch: `safe_claude_dir=$(printf '%s' "$CLAUDE_DIR" | tr -d '\n\r')` then write `$safe_claude_dir`.
+
+### Iteration 2
+
+**Fixes applied:** script-injection, unpinned-uses
+
+**Notes:**
+
+Fixed examples/issue-triage.yml:
+1. 'Setup GitHub MCP Server' step: Moved ${{ secrets.GITHUB_TOKEN }} into an env: block as GITHUB_TOKEN_VALUE, then referenced it via shell variable interpolation in the run: block (breaking out of the single-quoted heredoc with '"$GITHUB_TOKEN_VALUE"').
+2. 'Create triage prompt' step: Moved ${{ github.event.issue.number }} into an env: block as ISSUE_NUMBER, changed the heredoc delimiter from quoted 'EOF' to unquoted EOF to allow shell variable expansion, and replaced the ${{ }} expression with ${ISSUE_NUMBER}.
+3. Pinned anthropics/claude-code-base-action@beta to the full commit SHA e8132bc5e637a42c27763fc757faa37e1ee43b34 with a # beta comment for readability.
 
