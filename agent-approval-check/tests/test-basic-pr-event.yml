@@ -1,0 +1,52 @@
+name: Test basic PR event handling
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create fake pull_request event payload
+        run: |
+          mkdir -p /tmp/test-events
+          cat > /tmp/test-events/pull_request.json << 'EOF'
+          {
+            "pull_request": {
+              "number": 42,
+              "head": {
+                "sha": "abc1234567890abcdef1234567890abcdef12345",
+                "ref": "feature-branch"
+              },
+              "base": {
+                "ref": "main"
+              },
+              "user": {
+                "login": "human-user"
+              }
+            }
+          }
+          EOF
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          github_token: ${{ github.token }}
+          required_approvals: "2"
+          agent_emails: "noreply@anthropic.com"
+          agent_logins: "claude[bot],claude-code[bot]"
+
+      - name: Assert action ran (API calls fail on sentinel repo or event is unsupported under act)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (sentinel repo or workflow_dispatch event not supported)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

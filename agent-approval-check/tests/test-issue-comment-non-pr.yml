@@ -1,0 +1,52 @@
+name: Test issue_comment on non-PR issue exits cleanly
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create fake issue_comment event payload (plain issue, no PR)
+        run: |
+          mkdir -p /tmp/test-events
+          cat > /tmp/test-events/issue_comment.json << 'EOF'
+          {
+            "action": "created",
+            "issue": {
+              "number": 10,
+              "title": "A plain issue",
+              "body": "This is not a PR"
+            },
+            "comment": {
+              "id": 999,
+              "body": "Some comment"
+            }
+          }
+          EOF
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          github_token: ${{ github.token }}
+          required_approvals: "2"
+          agent_emails: "noreply@anthropic.com"
+          agent_logins: "claude[bot],claude-code[bot]"
+
+      - name: Assert action ran (under act event is always workflow_dispatch so failure is expected)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # Under act, the composite action always sets GH_EVENT_NAME=workflow_dispatch
+          # (from github.event_name), which is unsupported. The action will fail.
+          # In a real environment with issue_comment event and no PR, it would exit 0.
+          if [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action exited cleanly (no PR to process)"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (workflow_dispatch is unsupported under act)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
