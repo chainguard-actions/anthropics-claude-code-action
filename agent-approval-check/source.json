@@ -2,6 +2,7 @@
   "owner": "anthropics",
   "repo": "claude-code-action",
   "version": "v1.0.232",
+  "path": "agent-approval-check",
   "commit_sha": "46a42b43239748e5b25771606bf1f551c3b1b517",
   "url": "https://github.com/anthropics/claude-code-action",
   "policy_sha": "d636be7e43ef829af6e853da6b3c7566db9f72fe",
