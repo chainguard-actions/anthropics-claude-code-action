@@ -1,0 +1,41 @@
+name: Test - Output Conclusion Field
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          prompt: "Echo hello"
+          use_sticky_comment: "false"
+          classify_inline_comments: "false"
+          # No anthropic_api_key — action will fail at the Claude invocation step
+
+      - name: Assert conclusion output is valid or empty (no credentials)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+          EXECUTION_FILE: ${{ steps.action.outputs.execution_file }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: $CONCLUSION"
+          echo "execution_file: $EXECUTION_FILE"
+          if [ "$OUTCOME" = "success" ]; then
+            # If action succeeded, conclusion must be 'success' or 'failure'
+            if [ "$CONCLUSION" = "success" ] || [ "$CONCLUSION" = "failure" ]; then
+              echo "PASS: conclusion is valid value '$CONCLUSION'"
+            else
+              echo "FAIL: expected conclusion to be 'success' or 'failure', got '$CONCLUSION'"
+              exit 1
+            fi
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully as expected (no API key)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

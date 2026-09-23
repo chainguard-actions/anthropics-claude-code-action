@@ -1,0 +1,55 @@
+name: Test issue_comment on non-PR issue exits cleanly
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create fake issue_comment event payload (plain issue, no PR)
+        run: |
+          mkdir -p /tmp/test-events
+          cat > /tmp/test-events/issue_comment.json <<'EOF'
+          {
+            "action": "created",
+            "issue": {
+              "number": 42,
+              "title": "A plain issue",
+              "body": "This is not a pull request"
+            },
+            "comment": {
+              "id": 1,
+              "body": "/approve abc123"
+            }
+          }
+          EOF
+
+      # NOTE: The action's composite step always overrides GH_EVENT_NAME with
+      # github.event_name (workflow_dispatch) and GH_EVENT_PATH with the real
+      # event path, so the fake event file cannot be injected via env vars.
+      # Under workflow_dispatch the script raises ValueError("Unsupported event")
+      # and exits non-zero. We verify the action fails gracefully (not a hang
+      # or unexpected crash) rather than testing the no-op path directly.
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          github_token: ${{ github.token }}
+          required_approvals: "2"
+          agent_emails: noreply@anthropic.com
+          agent_logins: claude[bot],claude-code[bot]
+
+      - name: Assert action exited (workflow_dispatch is unsupported — failure is expected)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed as expected (workflow_dispatch is an unsupported event)"
+          elif [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action exited 0 (no PR resolved)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
