@@ -20,10 +20,11 @@ jobs:
 
       - name: Setup GitHub MCP Server
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN_VALUE: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p /tmp/mcp-config
-          jq -n --arg token "$GH_TOKEN" '{
+          cat > /tmp/mcp-config/mcp-servers.json << EOF
+          {
             "mcpServers": {
               "github": {
                 "command": "docker",
@@ -36,16 +37,17 @@ jobs:
                   "ghcr.io/github/github-mcp-server:sha-23fa0dd"
                 ],
                 "env": {
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": $token
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_TOKEN_VALUE"
                 }
               }
             }
-          }' > /tmp/mcp-config/mcp-servers.json
+          }
+          EOF
 
       - name: Create triage prompt
         env:
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
           GITHUB_REPOSITORY: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
           mkdir -p /tmp/claude-prompts
           cat > /tmp/claude-prompts/triage-prompt.txt << EOF
@@ -59,7 +61,7 @@ jobs:
 
           TASK OVERVIEW:
 
-          1. First, fetch the list of labels available in this repository by running: \`gh label list\`. Run exactly this command with nothing else.
+          1. First, fetch the list of labels available in this repository by running: `gh label list`. Run exactly this command with nothing else.
 
           2. Next, use the GitHub tools to get context about the issue:
              - You have access to these tools:

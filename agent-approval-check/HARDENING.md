@@ -16,11 +16,11 @@ Action **anthropics--claude-code-action--agent-approval-check/v1.0.222** was har
 
 ### script-injection (severity: high)
 
-Sub-rule (a): A ${{ ... }} expression is directly interpolated inside a run: shell command string. The step runs: `python "${{ github.action_path }}/agent_approval_check.py"` — the `github.action_path` context value is substituted by the Actions runner into the shell command before the shell ever sees it. Any `${{ ... }}` expression directly inside a run: block is a script-injection risk. The fix is to use the pre-set `$GITHUB_ACTION_PATH` environment variable instead: `python "$GITHUB_ACTION_PATH/agent_approval_check.py"`
+Sub-rule (a): A ${{ ... }} expression is directly interpolated inside a run: shell command string. The step `run: python "${{ github.action_path }}/agent_approval_check.py"` embeds `${{ github.action_path }}` directly in the shell command. Even though `github.action_path` is typically a controlled value, any `${{ ... }}` expression inside a run: block is a script-injection risk because the value flows through YAML template substitution before the shell ever sees it. The safe alternative is to use the `$GITHUB_ACTION_PATH` environment variable instead: `run: python "$GITHUB_ACTION_PATH/agent_approval_check.py"`.
 
 Locations:
 
-- `action.yml:57`
+- `action.yml:58`
 
 ## Iteration Notes
 
@@ -30,5 +30,5 @@ Locations:
 
 **Notes:**
 
-Fixed script-injection vulnerability in action.yml at line 57. Replaced `python "${{ github.action_path }}/agent_approval_check.py"` with `python "$GITHUB_ACTION_PATH/agent_approval_check.py"`. The `$GITHUB_ACTION_PATH` environment variable is pre-set by the GitHub Actions runner and is safe to use directly in shell scripts, unlike the `${{ github.action_path }}` expression which gets interpolated into the shell command string before the shell sees it.
+Replaced `${{ github.action_path }}` in the run: shell command at action.yml line 58 with the `$GITHUB_ACTION_PATH` environment variable. GitHub Actions automatically sets this variable, so it provides the same path without the script-injection risk of YAML template substitution.
 
