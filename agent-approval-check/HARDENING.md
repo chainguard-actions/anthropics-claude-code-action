@@ -16,7 +16,7 @@ Action **anthropics--claude-code-action--agent-approval-check/v1.0.224** was har
 
 ### script-injection (severity: high)
 
-Sub-rule (a): A GitHub Actions expression `${{ github.action_path }}` is interpolated directly inside a `run:` shell command string. Although `github.action_path` is not attacker-controlled in the same way as `github.head_ref`, any `${{ ... }}` expression inside a `run:` block is a script-injection finding per the check rules — the value flows through YAML template substitution before the shell ever sees it. The offending line is: `run: python "${{ github.action_path }}/agent_approval_check.py"`. The fix is to use the pre-set environment variable `$GITHUB_ACTION_PATH` instead: `run: python "$GITHUB_ACTION_PATH/agent_approval_check.py"`.
+Sub-rule (a) violation: A ${{ ... }} expression is directly interpolated inside a `run:` shell command string. The step runs `python "${{ github.action_path }}/agent_approval_check.py"`, embedding the `github.action_path` context value directly into the shell command before the shell ever sees it. Per the check rules, any `${{ ... }}` expression inside a `run:` block is a script-injection finding regardless of which context it reads from. The safe alternative is to use the pre-set `$GITHUB_ACTION_PATH` environment variable instead: `python "$GITHUB_ACTION_PATH/agent_approval_check.py"`.
 
 Locations:
 
@@ -30,5 +30,5 @@ Locations:
 
 **Notes:**
 
-Replaced `${{ github.action_path }}` in the `run:` shell command on line 57 of action.yml with the pre-set environment variable `$GITHUB_ACTION_PATH`. This avoids YAML template substitution inside the shell command string, eliminating the script-injection finding. The `$GITHUB_ACTION_PATH` environment variable is automatically provided by the GitHub Actions runner and is functionally equivalent.
+Replaced `${{ github.action_path }}` in the `run:` shell command with the pre-set `$GITHUB_ACTION_PATH` environment variable. GitHub Actions automatically sets `GITHUB_ACTION_PATH` to the same value as `github.action_path`, so runtime behavior is identical but the expression is no longer interpolated directly into the shell command string.
 

@@ -19,8 +19,6 @@ jobs:
           fetch-depth: 0
 
       - name: Setup GitHub MCP Server
-        env:
-          GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p /tmp/mcp-config
           cat > /tmp/mcp-config/mcp-servers.json << 'EOF'
@@ -35,7 +33,10 @@ jobs:
                   "-e",
                   "GITHUB_PERSONAL_ACCESS_TOKEN",
                   "ghcr.io/github/github-mcp-server:sha-23fa0dd"
-                ]
+                ],
+                "env": {
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GITHUB_TOKEN }}"
+                }
               }
             }
           }
@@ -44,14 +45,14 @@ jobs:
       - name: Create triage prompt
         run: |
           mkdir -p /tmp/claude-prompts
-          cat > /tmp/claude-prompts/triage-prompt.txt << EOF
+          cat > /tmp/claude-prompts/triage-prompt.txt << 'EOF'
           You're an issue triage assistant for GitHub issues. Your task is to analyze the issue and select appropriate labels from the provided list.
 
           IMPORTANT: Don't post any comments or messages to the issue. Your only action should be to apply labels.
 
           Issue Information:
           - REPO: ${GITHUB_REPOSITORY}
-          - ISSUE_NUMBER: ${ISSUE_NUMBER}
+          - ISSUE_NUMBER: ${{ github.event.issue.number }}
 
           TASK OVERVIEW:
 
@@ -96,10 +97,9 @@ jobs:
           EOF
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
 
       - name: Run Claude Code for Issue Triage
-        uses: anthropics/claude-code-base-action@e8132bc5e637a42c27763fc757faa37e1ee43b34 # beta
+        uses: anthropics/claude-code-base-action@beta
         with:
           prompt_file: /tmp/claude-prompts/triage-prompt.txt
           allowed_tools: "Bash(gh label list),mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__update_issue,mcp__github__search_issues,mcp__github__list_issues"
