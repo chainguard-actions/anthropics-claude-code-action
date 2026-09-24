@@ -1,0 +1,30 @@
+name: Test unsupported event type
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          agent_emails: "noreply@anthropic.com"
+          agent_logins: "claude[bot]"
+      - name: Assert action failed gracefully on unsupported event
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # Under act/workflow_dispatch, github.event_name is always "workflow_dispatch"
+          # which is not a supported event — the script raises ValueError and exits non-zero.
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed as expected for unsupported event type"
+          elif [ "$OUTCOME" = "success" ]; then
+            echo "FAIL: expected failure for unsupported event but got success"
+            exit 1
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
