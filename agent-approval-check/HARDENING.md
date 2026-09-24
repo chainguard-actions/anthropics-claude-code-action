@@ -16,11 +16,11 @@ Action **anthropics--claude-code-action--agent-approval-check/v1.0.220** was har
 
 ### script-injection (severity: high)
 
-Sub-rule (a) violation: A `${{ ... }}` expression is directly interpolated inside a `run:` shell command string. The step `run: python "${{ github.action_path }}/agent_approval_check.py"` embeds `${{ github.action_path }}` directly in the shell command. Any `${{ ... }}` expression inside a `run:` block undergoes YAML template substitution before the shell ever sees it, making it a script-injection risk. The safe alternative is to use the pre-set environment variable `$GITHUB_ACTION_PATH` instead: `run: python "$GITHUB_ACTION_PATH/agent_approval_check.py"`.
+Sub-rule (a): A ${{ ... }} expression is directly interpolated inside a run: shell command string. The run: block on line 59 of action.yml contains: `run: python "${{ github.action_path }}/agent_approval_check.py"`. Any ${{ }} expression embedded directly in a run: script is a script-injection risk because the value is substituted into the shell command string before the shell parses it. The safe alternative is to use the pre-set environment variable $GITHUB_ACTION_PATH (which GitHub Actions automatically populates) instead of the ${{ github.action_path }} expression, e.g.: `run: python "$GITHUB_ACTION_PATH/agent_approval_check.py"`.
 
 Locations:
 
-- `action.yml:56`
+- `action.yml:59`
 
 ## Iteration Notes
 
@@ -30,5 +30,5 @@ Locations:
 
 **Notes:**
 
-Replaced `${{ github.action_path }}` with `$GITHUB_ACTION_PATH` in the `run:` step at line 56 of action.yml. The `$GITHUB_ACTION_PATH` environment variable is automatically set by GitHub Actions for composite actions and is the safe, injection-free way to reference the action's directory path.
+Fixed script injection in action.yml line 59: replaced `python "${{ github.action_path }}/agent_approval_check.py"` with `python "$GITHUB_ACTION_PATH/agent_approval_check.py"`. GitHub Actions automatically sets the $GITHUB_ACTION_PATH environment variable to the same value as `github.action_path`, so this is a safe, behavior-preserving substitution that eliminates the ${{ }} expression from the shell command string.
 
