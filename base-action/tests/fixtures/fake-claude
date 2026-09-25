@@ -1,0 +1,5 @@
+#!/bin/sh
+# Fake claude executable for testing.
+# Exits with error code 1 to simulate a failed claude invocation.
+echo "fake-claude: simulated failure for testing" >&2
+exit 1

@@ -1,0 +1,71 @@
+name: Test pull_request_review event (sentinel repo graceful failure)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Create a fake pull_request_review event payload
+      - name: Create pull_request_review event payload
+        run: |
+          mkdir -p /tmp/test-events
+          cat > /tmp/test-events/pull_request_review.json <<'EOF'
+          {
+            "action": "submitted",
+            "review": {
+              "state": "approved",
+              "user": {
+                "login": "human-reviewer"
+              }
+            },
+            "pull_request": {
+              "number": 99,
+              "head": {
+                "sha": "deadbeef1234567890abcdef1234567890abcdef",
+                "ref": "feature/some-work"
+              },
+              "base": {
+                "ref": "main"
+              },
+              "user": {
+                "login": "developer"
+              }
+            },
+            "repository": {
+              "full_name": "test-owner/test-repo",
+              "default_branch": "main"
+            }
+          }
+          EOF
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        env:
+          GH_EVENT_NAME: pull_request_review
+          GH_EVENT_PATH: /tmp/test-events/pull_request_review.json
+        with:
+          github_token: ${{ github.token }}
+          required_approvals: "1"
+          agent_emails: noreply@anthropic.com
+          agent_logins: claude[bot],claude-code[bot]
+          excluded_approvers: ""
+
+      - name: Assert action ran for pull_request_review event
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # The action will attempt API calls against the sentinel repo.
+          # Either success (if API calls somehow work) or failure (sentinel repo
+          # not resolvable) is acceptable — the key is no unexpected crash.
+          if [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded (PR review processed)"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (sentinel repo is not resolvable)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

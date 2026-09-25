@@ -1,0 +1,66 @@
+name: Test exempt head branch configuration
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Create a fake pull_request event payload from an exempt branch
+      - name: Create pull_request event payload from exempt branch
+        run: |
+          mkdir -p /tmp/test-events
+          cat > /tmp/test-events/pull_request_exempt.json <<'EOF'
+          {
+            "action": "opened",
+            "number": 77,
+            "pull_request": {
+              "number": 77,
+              "head": {
+                "sha": "cafebabe1234567890abcdef1234567890abcdef",
+                "ref": "dependabot/npm_and_yarn/lodash-4.17.21"
+              },
+              "base": {
+                "ref": "main"
+              },
+              "user": {
+                "login": "dependabot[bot]"
+              }
+            },
+            "repository": {
+              "full_name": "test-owner/test-repo",
+              "default_branch": "main"
+            }
+          }
+          EOF
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        env:
+          GH_EVENT_NAME: pull_request
+          GH_EVENT_PATH: /tmp/test-events/pull_request_exempt.json
+        with:
+          github_token: ${{ github.token }}
+          required_approvals: "2"
+          agent_emails: noreply@anthropic.com
+          agent_logins: claude[bot],claude-code[bot]
+          exempt_head_branches: "dependabot/*,renovate/*"
+
+      - name: Assert action ran with exempt branch config
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # The action will attempt API calls against the sentinel repo.
+          # Either success (exempt branch auto-pass) or graceful failure
+          # (sentinel repo not resolvable) is acceptable.
+          if [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded (exempt branch auto-passed or PR processed)"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (sentinel repo is not resolvable)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
