@@ -1,0 +1,60 @@
+name: Test validation error for partial workload identity federation
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install bun and action dependencies
+        run: |
+          # Install bun to a fixed known path
+          BUN_INSTALL=/tmp/bun-install
+          mkdir -p "$BUN_INSTALL/bin"
+          curl -fsSL https://bun.sh/install | BUN_INSTALL="$BUN_INSTALL" bash
+          export PATH="$BUN_INSTALL/bin:$PATH"
+          echo "$BUN_INSTALL/bin" >> "$GITHUB_PATH"
+          # Pre-install action dependencies so bun install --production is fast/offline
+          cd "$GITHUB_WORKSPACE"
+          "$BUN_INSTALL/bin/bun" install --production
+
+      - name: Create fake claude executable
+        run: |
+          mkdir -p /tmp/fake-claude-bin
+          cat > /tmp/fake-claude-bin/claude << 'EOF'
+          #!/bin/sh
+          echo "fake claude called"
+          exit 0
+          EOF
+          chmod +x /tmp/fake-claude-bin/claude
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          prompt: "Say hello"
+          path_to_claude_code_executable: "/tmp/fake-claude-bin/claude"
+          path_to_bun_executable: "/tmp/bun-install/bin/bun"
+          # Only providing federation_rule_id without organization_id
+          # This should trigger the partial workload identity validation error
+          anthropic_federation_rule_id: "fdrl_fake_rule_id"
+          # anthropic_organization_id is intentionally omitted
+
+      - name: Assert action failed due to partial workload identity config
+        env:
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: $CONCLUSION"
+          # Partial workload identity config must fail validation
+          if [ "$OUTCOME" = "success" ]; then
+            echo "FAIL: action should not succeed with partial workload identity configuration"
+            exit 1
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action correctly failed with partial workload identity configuration"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

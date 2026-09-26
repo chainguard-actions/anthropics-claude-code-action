@@ -1,0 +1,59 @@
+name: Test Bedrock validation error when AWS_REGION is missing
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install bun and action dependencies
+        run: |
+          # Install bun to a fixed known path
+          BUN_INSTALL=/tmp/bun-install
+          mkdir -p "$BUN_INSTALL/bin"
+          curl -fsSL https://bun.sh/install | BUN_INSTALL="$BUN_INSTALL" bash
+          export PATH="$BUN_INSTALL/bin:$PATH"
+          echo "$BUN_INSTALL/bin" >> "$GITHUB_PATH"
+          # Pre-install action dependencies so bun install --production is fast/offline
+          cd "$GITHUB_WORKSPACE"
+          "$BUN_INSTALL/bin/bun" install --production
+
+      - name: Create fake claude executable
+        run: |
+          mkdir -p /tmp/fake-claude-bin
+          cat > /tmp/fake-claude-bin/claude << 'EOF'
+          #!/bin/sh
+          echo "fake claude called"
+          exit 0
+          EOF
+          chmod +x /tmp/fake-claude-bin/claude
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          prompt: "Say hello"
+          use_bedrock: "true"
+          path_to_claude_code_executable: "/tmp/fake-claude-bin/claude"
+          path_to_bun_executable: "/tmp/bun-install/bin/bun"
+          # AWS_REGION is not set - this should trigger validation error
+          # AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY are also not set
+
+      - name: Assert action failed due to missing AWS_REGION for Bedrock
+        env:
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: $CONCLUSION"
+          # Bedrock without AWS_REGION must fail validation
+          if [ "$OUTCOME" = "success" ]; then
+            echo "FAIL: action should not succeed when use_bedrock=true but AWS_REGION is missing"
+            exit 1
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action correctly failed when AWS_REGION was missing for Bedrock"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
