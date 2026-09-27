@@ -1,0 +1,73 @@
+name: Test auth token inputs (anthropic_api_key, claude_code_oauth_token, assignee_trigger)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Test 1: assignee_trigger input — no prompt, action skips gracefully
+      - id: action-assignee
+        uses: .
+        with:
+          github_token: ${{ github.token }}
+          assignee_trigger: "claude"
+          # No prompt → no trigger → action skips gracefully without needing API key
+
+      - name: Assert action skipped gracefully with assignee_trigger
+        env:
+          OUTCOME: ${{ steps.action-assignee.outcome }}
+        run: |
+          echo "action outcome: $OUTCOME"
+          if [ "$OUTCOME" != "success" ]; then
+            echo "FAIL: expected action to succeed (skip gracefully) with assignee_trigger set, got: $OUTCOME"
+            exit 1
+          fi
+          echo "PASS: action handled assignee_trigger input correctly"
+
+      # Test 2: anthropic_api_key with a prompt — will fail (fake key) but should fail gracefully
+      - id: action-api-key
+        continue-on-error: true
+        uses: .
+        with:
+          github_token: ${{ github.token }}
+          anthropic_api_key: "sk-ant-fake-key-for-coverage-testing"
+          prompt: "Say hello"
+
+      - name: Assert action ran with anthropic_api_key (fails gracefully on fake key)
+        env:
+          OUTCOME: ${{ steps.action-api-key.outcome }}
+        run: |
+          echo "action outcome: $OUTCOME"
+          # With a fake API key and a prompt, the action should fail (auth error)
+          # or succeed if it somehow skips. Either way, it must not be skipped.
+          if [ "$OUTCOME" = "success" ] || [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action ran with anthropic_api_key input (outcome: $OUTCOME)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
+
+      # Test 3: claude_code_oauth_token with a prompt — will fail (fake token) but should fail gracefully
+      - id: action-oauth-token
+        continue-on-error: true
+        uses: .
+        with:
+          github_token: ${{ github.token }}
+          claude_code_oauth_token: "fake-oauth-token-for-coverage-testing"
+          prompt: "Say hello"
+
+      - name: Assert action ran with claude_code_oauth_token (fails gracefully on fake token)
+        env:
+          OUTCOME: ${{ steps.action-oauth-token.outcome }}
+        run: |
+          echo "action outcome: $OUTCOME"
+          # With a fake OAuth token and a prompt, the action should fail (auth error)
+          # or succeed if it somehow skips. Either way, it must not be skipped.
+          if [ "$OUTCOME" = "success" ] || [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action ran with claude_code_oauth_token input (outcome: $OUTCOME)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

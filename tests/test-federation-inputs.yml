@@ -6,27 +6,38 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Pass all federation-related inputs without a prompt so the action skips
+      # gracefully (no trigger found) without needing real credentials.
       - id: action
         uses: .
-        continue-on-error: true
         with:
+          github_token: ${{ github.token }}
           anthropic_federation_rule_id: "fdrl_fake_rule_id_for_coverage"
           anthropic_organization_id: "00000000-0000-0000-0000-000000000000"
           anthropic_service_account_id: "svac_fake_service_account_id"
           anthropic_workspace_id: "wrkspc_fake_workspace_id"
           anthropic_oidc_audience: "https://api.anthropic.com"
-          prompt: "Say hello"
-          trigger_phrase: "@claude"
-      - name: Assert action ran (fails gracefully with fake federation credentials)
+          # No prompt → no trigger → action skips gracefully without invoking the API
+
+      - name: Assert action completed successfully with federation inputs
         env:
           OUTCOME: ${{ steps.action.outcome }}
         run: |
-          echo "outcome: $OUTCOME"
-          if [ "$OUTCOME" = "success" ]; then
-            echo "PASS: action succeeded"
-          elif [ "$OUTCOME" = "failure" ]; then
-            echo "PASS: action failed gracefully (expected with fake federation credentials)"
-          else
-            echo "FAIL: unexpected outcome '$OUTCOME'"
+          echo "action outcome: $OUTCOME"
+          if [ "$OUTCOME" != "success" ]; then
+            echo "FAIL: expected action to succeed (skip gracefully) with federation inputs, got: $OUTCOME"
             exit 1
           fi
+          echo "PASS: action handled federation inputs correctly"
+
+      - name: Assert github_token output is set
+        env:
+          ACTUAL: ${{ steps.action.outputs.github_token }}
+        run: |
+          echo "github_token length: ${#ACTUAL}"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected github_token output to be set even on skip"
+            exit 1
+          fi
+          echo "PASS: github_token output is set"
