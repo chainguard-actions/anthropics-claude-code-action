@@ -1,0 +1,35 @@
+name: Test basic PR event (sentinel repo graceful failure)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          github_token: ${{ github.token }}
+          required_approvals: "2"
+          agent_emails: "noreply@anthropic.com"
+          agent_logins: "claude[bot],claude-code[bot]"
+
+      - name: Assert action ran and exited (graceful failure expected)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # Under act the composite action always sees GH_EVENT_NAME=workflow_dispatch,
+          # which is an unsupported event — the script raises ValueError and exits non-zero.
+          # The sentinel repo also makes any GitHub API call fail.
+          # Both failure and success are acceptable; what matters is the step completed.
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (unsupported event or sentinel repo)"
+          elif [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

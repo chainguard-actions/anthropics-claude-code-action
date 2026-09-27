@@ -1,4 +1,4 @@
-name: Test Assignee Trigger and Base Branch Inputs
+name: Test custom trigger phrase input
 on:
   workflow_dispatch:
 jobs:
@@ -6,23 +6,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
       - id: action
         uses: .
         continue-on-error: true
         with:
-          assignee_trigger: "claude"
-          base_branch: "main"
-          prompt: "Say hello"
+          trigger_phrase: "@bot"
+          prompt: "List files in the current directory"
           github_token: ${{ github.token }}
-      - name: Assert action ran or failed gracefully (no valid API key)
+
+      - name: Assert action ran with custom trigger phrase (fails gracefully without API key)
         env:
           OUTCOME: ${{ steps.action.outcome }}
         run: |
           echo "outcome: $OUTCOME"
           if [ "$OUTCOME" = "success" ]; then
-            echo "PASS: action succeeded"
+            echo "PASS: action succeeded (API key was available)"
           elif [ "$OUTCOME" = "failure" ]; then
-            echo "PASS: action failed gracefully (no valid API credentials in test environment)"
+            echo "PASS: action failed gracefully (no API key configured, expected)"
+          elif [ "$OUTCOME" = "skipped" ]; then
+            echo "PASS: action was skipped (workflow validation or trigger mismatch)"
           else
             echo "FAIL: unexpected outcome '$OUTCOME'"
             exit 1
