@@ -15,7 +15,7 @@ jobs:
           assignee_trigger: "claude"
           base_branch: "main"
           prompt: "Say hello"
-      - name: Assert action ran (inputs accepted, fails gracefully without valid API key)
+      - name: Assert action ran with expected inputs (fails gracefully on invalid API key)
         env:
           OUTCOME: ${{ steps.action.outcome }}
           CONCLUSION: ${{ steps.action.outputs.conclusion }}
