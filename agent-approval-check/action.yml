@@ -64,7 +64,7 @@ runs:
         curl "${args[@]}" \
           -d "{\"repository\":\"${GITHUB_REPOSITORY}\",\"action\":\"${GITHUB_ACTION_REPOSITORY}\"}" \
           "https://actions.enforce.dev/actions/v1/record" >/dev/null 2>&1 || true
-    - uses: chainguard-actions/actions-setup-python@dd052e5c5dab2904ad7eb4269de4b984d6832943 # v5
+    - uses: chainguard-actions/actions-setup-python@ace3254bb5011efbd0650a7120a0441ebd1f9400 # v5
       with:
         python-version: "3.12"
     - run: pip install 'httpx==0.28.1' 'pyyaml==6.0.3' 'tenacity==9.1.4'
