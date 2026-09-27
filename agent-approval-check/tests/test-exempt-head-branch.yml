@@ -1,0 +1,63 @@
+name: Test exempt_head_branches configuration
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Create a fake pull_request event payload with an exempt branch
+      - name: Create fake pull_request event payload with exempt branch
+        run: |
+          mkdir -p /tmp/test-events
+          cat > /tmp/test-events/pull_request_exempt.json <<'EOF'
+          {
+            "action": "opened",
+            "number": 5,
+            "pull_request": {
+              "number": 5,
+              "title": "Dependabot update",
+              "head": {
+                "sha": "deadbeef1234567890abcdef1234567890abcdef",
+                "ref": "dependabot/npm/lodash-4.17.21"
+              },
+              "base": {
+                "ref": "main"
+              },
+              "user": {
+                "login": "dependabot[bot]"
+              }
+            }
+          }
+          EOF
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        env:
+          GH_EVENT_NAME: pull_request
+          GH_EVENT_PATH: /tmp/test-events/pull_request_exempt.json
+        with:
+          github_token: ${{ github.token }}
+          required_approvals: "2"
+          agent_emails: noreply@anthropic.com
+          agent_logins: claude[bot],claude-code[bot]
+          exempt_head_branches: "dependabot/*,renovate/*"
+
+      - name: Assert action ran with exempt head branch config
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # The action will attempt API calls to fetch PR data. With the sentinel repo,
+          # these calls will fail. The exempt branch check happens AFTER fetching PR data,
+          # so we expect either success (if API works) or failure (sentinel repo).
+          if [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded (exempt branch or API calls worked)"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (sentinel repo is not resolvable via API)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

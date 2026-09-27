@@ -1,0 +1,52 @@
+name: Test invalid required_approvals value exits with error
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Create a fake event payload for an issue_comment on a plain issue (no PR)
+      - name: Create fake issue_comment event payload
+        run: |
+          mkdir -p /tmp/test-events
+          cat > /tmp/test-events/issue_comment.json <<'EOF'
+          {
+            "action": "created",
+            "issue": {
+              "number": 42,
+              "title": "A plain issue",
+              "pull_request": null
+            },
+            "comment": {
+              "id": 1,
+              "body": "Hello"
+            }
+          }
+          EOF
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        env:
+          GH_EVENT_NAME: issue_comment
+          GH_EVENT_PATH: /tmp/test-events/issue_comment.json
+        with:
+          github_token: ${{ github.token }}
+          required_approvals: "0"
+          agent_emails: noreply@anthropic.com
+          agent_logins: claude[bot],claude-code[bot]
+
+      - name: Assert action fails when required_approvals is 0
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # The script should fail (exit 1) because REQUIRED_APPROVALS < 1
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action correctly rejected required_approvals=0"
+          else
+            echo "FAIL: expected failure for required_approvals=0, got '$OUTCOME'"
+            exit 1
+          fi

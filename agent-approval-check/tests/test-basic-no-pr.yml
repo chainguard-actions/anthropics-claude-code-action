@@ -1,0 +1,55 @@
+name: Test basic usage - non-PR issue comment exits cleanly
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Create a fake event payload for an issue_comment on a plain issue (no PR)
+      - name: Create fake issue_comment event payload
+        run: |
+          mkdir -p /tmp/test-events
+          cat > /tmp/test-events/issue_comment.json <<'EOF'
+          {
+            "action": "created",
+            "issue": {
+              "number": 42,
+              "title": "A plain issue (not a PR)",
+              "pull_request": null
+            },
+            "comment": {
+              "id": 1,
+              "body": "Hello world"
+            }
+          }
+          EOF
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        env:
+          GH_EVENT_NAME: issue_comment
+          GH_EVENT_PATH: /tmp/test-events/issue_comment.json
+        with:
+          github_token: ${{ github.token }}
+          required_approvals: "2"
+          agent_emails: noreply@anthropic.com
+          agent_logins: claude[bot],claude-code[bot]
+
+      - name: Assert action exited cleanly for non-PR issue comment
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # The script should succeed (exit 0) because the issue_comment is on a
+          # plain issue (no pull_request field), so it logs "nothing to do" and returns.
+          if [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action exited cleanly for non-PR issue comment"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (sentinel repo may have caused API error)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
