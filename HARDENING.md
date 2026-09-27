@@ -10,38 +10,45 @@
 
 **Harden Agent Version:** `2`
 
-Action **anthropics--claude-code-action/v1.0.69** was hardened automatically. 4 finding(s) were identified and resolved across 1 iteration(s).
+Action **anthropics--claude-code-action/v1.0.69** was hardened automatically. 5 finding(s) were identified and resolved across 1 iteration(s).
 
 ## Findings Fixed
 
-### script-injection (severity: high)
-
-Sub-rule (a): The expression `${{ steps.run.outputs.github_token }}` is interpolated directly inside a `run:` shell command string in the 'Revoke app token' step. The offending line is: `-H "Authorization: Bearer ${{ steps.run.outputs.github_token }}"`. Any `${{ ... }}` expression directly inside a run block is a script-injection risk because YAML template substitution occurs before the shell ever sees the value, allowing injection of shell metacharacters.
-
-Locations:
-
-- `action.yml:285`
-
 ### github-env-injection (severity: high)
 
-The 'Setup Custom Bun Path' step maps `inputs.path_to_bun_executable` (an untrusted input) to the env var `PATH_TO_BUN_EXECUTABLE`, then writes `dirname "$PATH_TO_BUN_EXECUTABLE"` to `$GITHUB_PATH` without the required sanitization (`printf '%s' ... | tr -d '\n\r'`). An attacker-controlled input value containing newlines could inject arbitrary entries into the runner's PATH. This is a case (d) violation.
+In the 'Setup Custom Bun Path' step, the env var PATH_TO_BUN_EXECUTABLE (sourced from inputs.path_to_bun_executable) is used to compute BUN_DIR and then written to $GITHUB_PATH via `echo "$BUN_DIR" >> "$GITHUB_PATH"` without the required sanitization step (`printf '%s' ... | tr -d '\n\r'`). A calling workflow can supply a newline-containing value to inject arbitrary entries into PATH.
 
 Locations:
 
 - `action.yml:175`
-- `base-action/action.yml:120`
 
 ### github-env-injection (severity: high)
 
-The 'Install Claude Code' step in base-action/action.yml maps `inputs.path_to_claude_code_executable` (an untrusted input) to the env var `PATH_TO_CLAUDE_CODE_EXECUTABLE`, then writes `dirname "$PATH_TO_CLAUDE_CODE_EXECUTABLE"` to `$GITHUB_PATH` without the required sanitization (`printf '%s' ... | tr -d '\n\r'`). An attacker-controlled input value containing newlines could inject arbitrary entries into the runner's PATH. This is a case (d) violation.
+In the 'Setup Custom Bun Path' step, the env var PATH_TO_BUN_EXECUTABLE (sourced from inputs.path_to_bun_executable) is used to compute BUN_DIR and then written to $GITHUB_PATH via `echo "$BUN_DIR" >> "$GITHUB_PATH"` without the required sanitization step (`printf '%s' ... | tr -d '\n\r'`). A calling workflow can supply a newline-containing value to inject arbitrary entries into PATH.
 
 Locations:
 
-- `base-action/action.yml:157`
+- `base-action/action.yml:113`
+
+### github-env-injection (severity: high)
+
+In the 'Install Claude Code' step, the env var PATH_TO_CLAUDE_CODE_EXECUTABLE (sourced from inputs.path_to_claude_code_executable) is used to compute CLAUDE_DIR and then written to $GITHUB_PATH via `echo "$CLAUDE_DIR" >> "$GITHUB_PATH"` without the required sanitization step (`printf '%s' ... | tr -d '\n\r'`). A calling workflow can supply a newline-containing value to inject arbitrary entries into PATH.
+
+Locations:
+
+- `base-action/action.yml:148`
+
+### script-injection (severity: high)
+
+Sub-rule (a): The 'Revoke app token' step directly interpolates `${{ steps.run.outputs.github_token }}` inside a `run:` shell command string: `-H "Authorization: Bearer ${{ steps.run.outputs.github_token }}"`. Any expression interpolated directly in a run block is a script-injection risk because the value is substituted into the shell command before the shell parses it. This should be moved to an `env:` variable and referenced as `$ENV_VAR` in the shell.
+
+Locations:
+
+- `action.yml:275`
 
 ### unsafe-shell (severity: high)
 
-The 'Install Claude Code' step pipes remote content directly to bash without first downloading to a file: `curl -fsSL https://claude.ai/install.sh | bash -s -- $CLAUDE_CODE_VERSION` (two occurrences — one inside a `timeout` wrapper and one in the else branch). If the remote URL is compromised or the response is tampered with in transit, arbitrary code executes on the runner immediately.
+The 'Install Claude Code' step pipes remote content directly to bash in two places: (1) inside a bash -c string: `curl -fsSL https://claude.ai/install.sh | bash -s -- $CLAUDE_CODE_VERSION` and (2) directly: `curl -fsSL https://claude.ai/install.sh | bash -s -- "$CLAUDE_CODE_VERSION"`. The install script should be downloaded to a file first, its integrity verified, and then executed separately.
 
 Locations:
 
@@ -52,17 +59,14 @@ Locations:
 
 ### Iteration 1
 
-**Fixes applied:** script-injection, github-env-injection, unsafe-shell
+**Fixes applied:** github-env-injection, script-injection, unsafe-shell
 
 **Notes:**
 
-Fixed 4 findings across action.yml and base-action/action.yml:
-
-1. script-injection (action.yml): Moved `${{ steps.run.outputs.github_token }}` from the 'Revoke app token' run: block into an env: block as APP_TOKEN, referenced as $APP_TOKEN in the curl command.
-
-2. github-env-injection (action.yml + base-action/action.yml): In both 'Setup Custom Bun Path' steps, sanitized the dirname output with `printf '%s' "$BUN_DIR" | tr -d '\n\r'` before writing to $GITHUB_PATH.
-
-3. github-env-injection (base-action/action.yml): In the 'Install Claude Code' step's else branch, sanitized the dirname output with `printf '%s' "$CLAUDE_DIR" | tr -d '\n\r'` before writing to $GITHUB_PATH.
-
-4. unsafe-shell (base-action/action.yml): Replaced both `curl ... | bash -s -- $CLAUDE_CODE_VERSION` occurrences with a download-then-execute pattern: curl downloads to a mktemp file, then `bash "$INSTALL_SCRIPT" "$CLAUDE_CODE_VERSION"` executes it (dropping `-s` and `--` which were pipe-form shell options, not script arguments). Temp file is cleaned up after installation.
+Fixed all 5 findings across action.yml and base-action/action.yml:
+1. action.yml Setup Custom Bun Path: Sanitized BUN_DIR with `printf '%s' ... | tr -d '\n\r'` before writing to GITHUB_PATH.
+2. base-action/action.yml Setup Custom Bun Path: Same BUN_DIR sanitization fix.
+3. base-action/action.yml Install Claude Code (CLAUDE_DIR): Sanitized CLAUDE_DIR with `printf '%s' ... | tr -d '\n\r'` before writing to GITHUB_PATH.
+4. action.yml Revoke app token: Moved `${{ steps.run.outputs.github_token }}` to an `env:` block as `APP_TOKEN` and referenced it as `$APP_TOKEN` in the shell script.
+5. base-action/action.yml Install Claude Code (curl|bash): Replaced both pipe-to-bash patterns with download-to-tempfile-then-execute. The `--` was dropped (it was the shell's option terminator in the pipe form, not the script's argument). Temp file is cleaned up after installation.
 

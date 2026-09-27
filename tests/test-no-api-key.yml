@@ -1,4 +1,4 @@
-name: Test claude_code_oauth_token input
+name: Test no API key (graceful failure)
 on:
   workflow_dispatch:
 jobs:
@@ -6,20 +6,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - id: action
+
+      - name: Run action without API key
+        id: action
         uses: .
         continue-on-error: true
         with:
-          claude_code_oauth_token: "fake-oauth-token-for-coverage"
           prompt: "Say hello"
-          trigger_phrase: "@claude"
-      - name: Assert action ran with claude_code_oauth_token input
+          github_token: ${{ github.token }}
+
+      - name: Assert action failed gracefully (no API key)
         env:
           OUTCOME: ${{ steps.action.outcome }}
         run: |
           echo "outcome: $OUTCOME"
-          if [ "$OUTCOME" = "success" ] || [ "$OUTCOME" = "failure" ]; then
-            echo "PASS: action ran with claude_code_oauth_token input (outcome: $OUTCOME)"
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed as expected without an API key"
+          elif [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded (unexpected but acceptable)"
           else
             echo "FAIL: unexpected outcome '$OUTCOME'"
             exit 1

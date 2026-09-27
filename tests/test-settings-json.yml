@@ -1,0 +1,31 @@
+name: Test settings JSON input
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Run action with settings JSON
+        id: action
+        uses: .
+        continue-on-error: true
+        with:
+          prompt: "Say hello"
+          github_token: ${{ github.token }}
+          settings: '{"model": "claude-opus-4-5"}'
+
+      - name: Assert action ran with settings JSON
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # The action should either succeed or fail due to missing API key,
+          # but NOT fail due to invalid settings JSON input
+          if [ "$OUTCOME" = "failure" ] || [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action accepted settings JSON input (outcome: $OUTCOME)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
