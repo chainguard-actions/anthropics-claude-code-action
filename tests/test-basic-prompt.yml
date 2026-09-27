@@ -1,4 +1,4 @@
-name: Test label and assignee trigger configuration
+name: Test basic prompt invocation
 on:
   workflow_dispatch:
 jobs:
@@ -7,18 +7,14 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - id: action
+      - name: Invoke action with a direct prompt (no API key - expect graceful failure)
+        id: action
         uses: .
         continue-on-error: true
         with:
-          prompt: "Review the code changes"
-          trigger_phrase: "@claude"
-          label_trigger: "claude"
-          assignee_trigger: "claude[bot]"
-          allowed_bots: ""
-          # No anthropic_api_key — action should fail gracefully
+          prompt: "Say hello world"
 
-      - name: Assert action ran (trigger config inputs accepted, graceful failure without API key)
+      - name: Assert action ran and produced a conclusion output or failed gracefully
         env:
           OUTCOME: ${{ steps.action.outcome }}
           CONCLUSION: ${{ steps.action.outputs.conclusion }}
@@ -26,9 +22,13 @@ jobs:
           echo "outcome: $OUTCOME"
           echo "conclusion: $CONCLUSION"
           if [ "$OUTCOME" = "success" ]; then
-            echo "PASS: action succeeded with trigger config"
+            if [ -z "$CONCLUSION" ]; then
+              echo "FAIL: action succeeded but conclusion output is empty"
+              exit 1
+            fi
+            echo "PASS: action succeeded with conclusion='$CONCLUSION'"
           elif [ "$OUTCOME" = "failure" ]; then
-            echo "PASS: action failed gracefully (no API key) — trigger config inputs accepted"
+            echo "PASS: action failed gracefully (no API key provided)"
           else
             echo "FAIL: unexpected outcome '$OUTCOME'"
             exit 1
