@@ -1,4 +1,4 @@
-name: Test auth and branch inputs accepted
+name: Test OAuth and federation inputs accepted
 on:
   workflow_dispatch:
 jobs:
@@ -14,13 +14,15 @@ jobs:
         with:
           # No prompt — action will skip cleanly, but all inputs should be accepted
           github_token: ${{ github.token }}
-          anthropic_api_key: "sk-ant-placeholder-not-used-no-prompt"
-          claude_code_oauth_token: "placeholder-oauth-token-not-used-no-prompt"
-          assignee_trigger: "claude"
-          base_branch: "main"
+          claude_code_oauth_token: "fake-oauth-token-for-input-coverage"
+          anthropic_federation_rule_id: "fdrl_fake_rule_id"
+          anthropic_oidc_audience: "https://api.anthropic.com"
+          anthropic_organization_id: "fake-org-uuid-for-input-coverage"
+          anthropic_service_account_id: "svac_fake_service_account"
+          anthropic_workspace_id: "wrkspc_fake_workspace"
           trigger_phrase: "@claude"
 
-      - name: Assert action accepted auth and branch inputs and skipped cleanly
+      - name: Assert action accepted all federation inputs and skipped cleanly
         env:
           EXECUTION_FILE: ${{ steps.action.outputs.execution_file }}
         run: |
@@ -30,4 +32,4 @@ jobs:
             echo "FAIL: expected empty execution_file but got: $EXECUTION_FILE"
             exit 1
           fi
-          echo "PASS: action accepted anthropic_api_key, claude_code_oauth_token, assignee_trigger, base_branch and skipped cleanly"
+          echo "PASS: action accepted claude_code_oauth_token, anthropic_federation_rule_id, anthropic_oidc_audience, anthropic_organization_id, anthropic_service_account_id, anthropic_workspace_id and skipped cleanly"
