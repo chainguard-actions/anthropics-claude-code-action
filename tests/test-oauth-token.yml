@@ -1,4 +1,4 @@
-name: Test auth with OAuth token input
+name: Test claude_code_oauth_token input
 on:
   workflow_dispatch:
 jobs:
@@ -12,7 +12,7 @@ jobs:
         with:
           claude_code_oauth_token: "fake-oauth-token-for-coverage"
           prompt: "Say hello"
-      - name: Assert action ran (failed gracefully without valid OAuth token)
+      - name: Assert action ran (fails gracefully without valid OAuth token)
         env:
           OUTCOME: ${{ steps.action.outcome }}
           CONCLUSION: ${{ steps.action.outputs.conclusion }}
