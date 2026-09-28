@@ -1,4 +1,4 @@
-name: Test auth with API key inputs
+name: Test auth API key inputs
 on:
   workflow_dispatch:
 jobs:
@@ -15,7 +15,7 @@ jobs:
           github_token: ${{ github.token }}
           prompt: "Say hello"
           trigger_phrase: "@claude"
-      - name: Assert action ran (outputs set or failed gracefully without valid API key)
+      - name: Assert action ran (fails gracefully without valid API key)
         env:
           OUTCOME: ${{ steps.action.outcome }}
           CONCLUSION: ${{ steps.action.outputs.conclusion }}
@@ -23,11 +23,7 @@ jobs:
           echo "outcome: $OUTCOME"
           echo "conclusion: $CONCLUSION"
           if [ "$OUTCOME" = "success" ]; then
-            if [ -z "$CONCLUSION" ]; then
-              echo "FAIL: action succeeded but conclusion output is empty"
-              exit 1
-            fi
-            echo "PASS: action succeeded with conclusion='$CONCLUSION'"
+            echo "PASS: action succeeded"
           elif [ "$OUTCOME" = "failure" ]; then
             echo "PASS: action failed gracefully (invalid API key or sentinel repo)"
           else

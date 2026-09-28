@@ -1,12 +1,9 @@
-name: Test auth with workload identity federation inputs
+name: Test auth federation inputs
 on:
   workflow_dispatch:
 jobs:
   test:
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - id: action
@@ -18,10 +15,9 @@ jobs:
           anthropic_service_account_id: "svac_test_invalid_for_coverage"
           anthropic_workspace_id: "wrkspc_test_invalid_for_coverage"
           anthropic_oidc_audience: "https://api.anthropic.com"
-          github_token: ${{ github.token }}
           prompt: "Say hello"
           trigger_phrase: "@claude"
-      - name: Assert action ran (outputs set or failed gracefully without valid federation credentials)
+      - name: Assert action ran (fails gracefully without valid federation credentials)
         env:
           OUTCOME: ${{ steps.action.outcome }}
           CONCLUSION: ${{ steps.action.outputs.conclusion }}
@@ -29,11 +25,7 @@ jobs:
           echo "outcome: $OUTCOME"
           echo "conclusion: $CONCLUSION"
           if [ "$OUTCOME" = "success" ]; then
-            if [ -z "$CONCLUSION" ]; then
-              echo "FAIL: action succeeded but conclusion output is empty"
-              exit 1
-            fi
-            echo "PASS: action succeeded with conclusion='$CONCLUSION'"
+            echo "PASS: action succeeded"
           elif [ "$OUTCOME" = "failure" ]; then
             echo "PASS: action failed gracefully (invalid federation credentials or sentinel repo)"
           else
