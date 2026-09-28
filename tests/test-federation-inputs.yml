@@ -12,12 +12,12 @@ jobs:
         with:
           anthropic_federation_rule_id: "fdrl_fake_rule_id_for_coverage"
           anthropic_organization_id: "00000000-0000-0000-0000-000000000000"
-          anthropic_service_account_id: "svac_fake_service_account_for_coverage"
-          anthropic_workspace_id: "wrkspc_fake_workspace_for_coverage"
+          anthropic_service_account_id: "svac_fake_service_account_id"
+          anthropic_workspace_id: "wrkspc_fake_workspace_id"
           anthropic_oidc_audience: "https://api.anthropic.com"
           prompt: "Say hello"
           trigger_phrase: "@claude"
-      - name: Assert action ran or failed gracefully
+      - name: Assert action ran (fails gracefully without valid federation credentials or real repo)
         env:
           OUTCOME: ${{ steps.action.outcome }}
           CONCLUSION: ${{ steps.action.outputs.conclusion }}
@@ -27,7 +27,7 @@ jobs:
           if [ "$OUTCOME" = "success" ]; then
             echo "PASS: action succeeded"
           elif [ "$OUTCOME" = "failure" ]; then
-            echo "PASS: action failed gracefully (expected without valid federation credentials or matching event)"
+            echo "PASS: action failed gracefully (expected with fake federation credentials / sentinel repo)"
           else
             echo "FAIL: unexpected outcome '$OUTCOME'"
             exit 1
