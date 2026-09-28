@@ -1,4 +1,4 @@
-name: Test claude_code_oauth_token input
+name: Test Claude Code OAuth token input
 on:
   workflow_dispatch:
 jobs:
@@ -10,16 +10,20 @@ jobs:
         uses: .
         continue-on-error: true
         with:
-          claude_code_oauth_token: "fake-oauth-token-for-coverage-testing"
+          claude_code_oauth_token: "fake-oauth-token-for-testing"
           prompt: "Say hello"
           trigger_phrase: "@claude"
-      - name: Assert action ran (failed gracefully without valid OAuth token or sentinel repo)
+      - name: Assert action ran (fails gracefully with fake OAuth token)
         env:
           OUTCOME: ${{ steps.action.outcome }}
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
         run: |
           echo "outcome: $OUTCOME"
-          if [ "$OUTCOME" = "success" ] || [ "$OUTCOME" = "failure" ]; then
-            echo "PASS: action completed with outcome '$OUTCOME' (expected failure due to fake OAuth token)"
+          echo "conclusion: $CONCLUSION"
+          if [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (expected with fake OAuth token)"
           else
             echo "FAIL: unexpected outcome '$OUTCOME'"
             exit 1
