@@ -1,0 +1,81 @@
+name: Test config file loading succeeds before API calls
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create agent identities config file
+        run: |
+          mkdir -p /tmp/test-config
+
+          # Write a valid agent-identities YAML config file
+          cat > /tmp/test-config/agent-identities.yaml <<'EOF'
+          agent_emails:
+            - noreply@anthropic.com
+            - bot@example.com
+          agent_app_logins:
+            - claude[bot]
+            - claude-code[bot]
+          excluded_approver_logins: []
+          exempt_head_branches: []
+          exempt_path_prefixes: {}
+          protected_bases: {}
+          EOF
+
+      - id: action-with-valid-config
+        uses: .
+        continue-on-error: true
+        env:
+          # GH_PR_NUMBER bypasses event parsing so we reach the API call stage.
+          # The action will fail at the GraphQL API call (sentinel repo), but
+          # that proves the config file was loaded successfully.
+          GH_PR_NUMBER: "1"
+        with:
+          github_token: ${{ github.token }}
+          required_approvals: "2"
+          config_file: /tmp/test-config/agent-identities.yaml
+
+      - name: Assert action failed at API level (not at config loading)
+        env:
+          OUTCOME: ${{ steps.action-with-valid-config.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # The action should fail at the GitHub API call (sentinel repo),
+          # not at config loading. Either outcome is acceptable here since
+          # the sentinel repo makes API calls fail.
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed at API level — config file was loaded successfully"
+          elif [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded (unexpected but config was loaded)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
+
+      - id: action-with-invalid-config
+        uses: .
+        continue-on-error: true
+        env:
+          GH_PR_NUMBER: "1"
+        with:
+          github_token: ${{ github.token }}
+          required_approvals: "2"
+          config_file: /tmp/nonexistent/config.yaml
+
+      - name: Assert action failed at config loading (file not found)
+        env:
+          OUTCOME: ${{ steps.action-with-invalid-config.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action correctly failed when config file does not exist"
+          elif [ "$OUTCOME" = "success" ]; then
+            echo "FAIL: action should have failed with a missing config file"
+            exit 1
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

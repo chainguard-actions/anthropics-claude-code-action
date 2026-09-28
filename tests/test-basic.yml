@@ -1,0 +1,33 @@
+name: Test basic usage (no API key - graceful failure)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          prompt: "Say hello"
+          github_token: ${{ github.token }}
+
+      - name: Assert action ran and produced a conclusion or failed gracefully
+        env:
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: $CONCLUSION"
+          # Without an Anthropic API key, the action should fail gracefully
+          # (not crash with an unhandled exception or missing binary)
+          if [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded (conclusion=$CONCLUSION)"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (expected without API key)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

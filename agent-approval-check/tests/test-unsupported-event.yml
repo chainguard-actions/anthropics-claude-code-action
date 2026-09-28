@@ -1,0 +1,35 @@
+name: Test unsupported event type fails gracefully
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          github_token: ${{ github.token }}
+          required_approvals: "2"
+          agent_emails: noreply@anthropic.com
+          agent_logins: claude[bot],claude-code[bot]
+
+      - name: Assert action failed for unsupported event
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # The action's env block sets GH_EVENT_NAME from github.event_name,
+          # which is 'workflow_dispatch' under act. The Python script raises
+          # ValueError for this unsupported event type.
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action correctly failed for unsupported event type (workflow_dispatch)"
+          elif [ "$OUTCOME" = "success" ]; then
+            echo "FAIL: action should have failed for unsupported event type"
+            exit 1
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

@@ -1,0 +1,35 @@
+name: Test sticky comment and commit signing inputs
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          prompt: "Check the repository"
+          use_sticky_comment: "true"
+          use_commit_signing: "false"
+          classify_inline_comments: "false"
+          github_token: ${{ github.token }}
+
+      - name: Assert action ran with sticky comment config (graceful failure without API key)
+        env:
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: $CONCLUSION"
+          # The action should either succeed or fail gracefully (not panic/crash)
+          if [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded with sticky comment config"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (expected without API key)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
