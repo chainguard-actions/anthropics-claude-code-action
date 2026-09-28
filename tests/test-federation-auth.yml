@@ -1,4 +1,4 @@
-name: Test workload identity federation inputs
+name: Test workload identity federation auth inputs
 on:
   workflow_dispatch:
 jobs:
@@ -12,17 +12,17 @@ jobs:
         with:
           anthropic_federation_rule_id: "fdrl_fake_rule_id_for_testing"
           anthropic_organization_id: "00000000-0000-0000-0000-000000000000"
-          anthropic_service_account_id: "svac_fake_service_account"
-          anthropic_workspace_id: "wrkspc_fake_workspace"
+          anthropic_service_account_id: "svac_fake_service_account_id"
+          anthropic_workspace_id: "wrkspc_fake_workspace_id"
           anthropic_oidc_audience: "https://api.anthropic.com"
           prompt: "Say hello"
-      - name: Assert action ran or failed gracefully
+      - name: Assert action ran (fails gracefully with fake federation credentials)
         env:
           OUTCOME: ${{ steps.action.outcome }}
         run: |
           echo "outcome: $OUTCOME"
           if [ "$OUTCOME" = "success" ] || [ "$OUTCOME" = "failure" ]; then
-            echo "PASS: action completed with outcome '$OUTCOME' (no crash/panic with federation inputs)"
+            echo "PASS: action ran and produced a definitive outcome ($OUTCOME)"
           else
             echo "FAIL: unexpected outcome '$OUTCOME'"
             exit 1
