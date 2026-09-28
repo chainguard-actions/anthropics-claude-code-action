@@ -1,0 +1,36 @@
+name: Test missing agent identities exits with error
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Pre-install Python dependencies so the composite action's pip install
+      # step succeeds even if actions/setup-python has issues under act.
+      - name: Pre-install Python dependencies
+        run: pip install 'httpx==0.28.1' 'pyyaml==6.0.3' 'tenacity==9.1.4' || true
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          github_token: ${{ github.token }}
+          required_approvals: "2"
+          agent_emails: ""
+          agent_logins: ""
+
+      # The script validates that at least one agent identity is configured
+      # before event resolution, so it exits 1 regardless of the event type.
+      # Expect failure.
+      - name: Assert action failed due to missing agent identities
+        run: |
+          OUTCOME="${{ steps.action.outcome }}"
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action correctly failed when no agent identities configured"
+          else
+            echo "FAIL: expected failure for empty agent identities, got '$OUTCOME'"
+            exit 1
+          fi

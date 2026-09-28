@@ -13,6 +13,7 @@ import {
   writeFileSync,
 } from "fs";
 import { dirname, join, posix, relative, sep } from "path";
+import { fetchDepthArgs } from "./fetch-depth";
 
 // Paths that are both PR-controllable and read from cwd at CLI startup.
 //
@@ -22,7 +23,7 @@ import { dirname, join, posix, relative, sep } from "path";
 //   .gitconfig   — git reads ~/.gitconfig and .git/config, never cwd/.gitconfig.
 //   .bashrc etc. — shells source these from $HOME; checkout cannot reach $HOME.
 //   .vscode/.idea— IDE config; nothing in the CLI's startup path reads them.
-const SENSITIVE_PATHS = [
+export const SENSITIVE_PATHS = [
   ".claude",
   ".mcp.json",
   ".claude.json",
@@ -261,8 +262,11 @@ function ensureClaudePrExcludedFromGit(): void {
  *
  * @param baseBranch - PR base branch name. Must be pre-validated (branch.ts
  *   calls validateBranchName on it before returning).
+ * @returns The paths whose working-tree state now comes from the base branch
+ *   rather than the PR. Callers that stage files must exclude these, or they
+ *   will commit the revert back onto the PR author's branch.
  */
-export function restoreConfigFromBase(baseBranch: string): void {
+export function restoreConfigFromBase(baseBranch: string): string[] {
   console.log(
     `Restoring ${SENSITIVE_PATHS.join(", ")} from origin/${baseBranch} (PR head is untrusted)`,
   );
@@ -305,7 +309,13 @@ export function restoreConfigFromBase(baseBranch: string): void {
   // fetch.recurseSubmodules config. Defense-in-depth alongside the delete above.
   execFileSync(
     "git",
-    ["fetch", "origin", baseBranch, "--depth=1", "--no-recurse-submodules"],
+    [
+      "fetch",
+      "origin",
+      baseBranch,
+      ...fetchDepthArgs(1),
+      "--no-recurse-submodules",
+    ],
     {
       stdio: "inherit",
       env: process.env,
@@ -331,4 +341,9 @@ export function restoreConfigFromBase(baseBranch: string): void {
   } catch {
     // Nothing was staged, or paths don't exist on HEAD — either is fine.
   }
+
+  // Every sensitive path is reported, not just the ones that changed: the
+  // restore also deletes paths the PR added that are absent on base, and those
+  // deletions are stageable too.
+  return [...SENSITIVE_PATHS];
 }

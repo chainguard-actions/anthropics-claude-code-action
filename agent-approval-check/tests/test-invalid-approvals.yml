@@ -1,0 +1,35 @@
+name: Test invalid required_approvals exits with error
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Pre-install Python dependencies so the composite action's pip install
+      # step succeeds even if actions/setup-python has issues under act.
+      - name: Pre-install Python dependencies
+        run: pip install 'httpx==0.28.1' 'pyyaml==6.0.3' 'tenacity==9.1.4' || true
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          github_token: ${{ github.token }}
+          required_approvals: "0"
+          agent_emails: noreply@anthropic.com
+          agent_logins: "claude[bot],claude-code[bot]"
+
+      # The script validates REQUIRED_APPROVALS >= 1 before event resolution,
+      # so it exits 1 regardless of the event type. Expect failure.
+      - name: Assert action failed due to invalid required_approvals
+        run: |
+          OUTCOME="${{ steps.action.outcome }}"
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action correctly failed when required_approvals=0"
+          else
+            echo "FAIL: expected failure for required_approvals=0, got '$OUTCOME'"
+            exit 1
+          fi

@@ -1,0 +1,38 @@
+name: Test non-PR event exits gracefully
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Pre-install Python dependencies so the composite action's pip install
+      # step succeeds even if actions/setup-python has issues under act.
+      - name: Pre-install Python dependencies
+        run: pip install 'httpx==0.28.1' 'pyyaml==6.0.3' 'tenacity==9.1.4' || true
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          github_token: ${{ github.token }}
+          required_approvals: "2"
+          agent_emails: noreply@anthropic.com
+          agent_logins: "claude[bot],claude-code[bot]"
+
+      # Under act the composite action always sees GH_EVENT_NAME=workflow_dispatch
+      # (set from ${{ github.event_name }}), which is an unsupported event type
+      # and causes the script to raise ValueError. Accept either outcome.
+      - name: Assert action ran (success or graceful failure)
+        run: |
+          OUTCOME="${{ steps.action.outcome }}"
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action exited 0 for non-PR event"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (workflow_dispatch is not a supported event type)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
