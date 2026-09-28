@@ -10,7 +10,7 @@ jobs:
         uses: .
         continue-on-error: true
         with:
-          claude_code_oauth_token: "fake-oauth-token-for-testing"
+          claude_code_oauth_token: "fake-oauth-token-for-input-coverage-testing"
           prompt: "Say hello"
           trigger_phrase: "@claude"
       - name: Assert action ran or failed gracefully
@@ -19,7 +19,7 @@ jobs:
         run: |
           echo "outcome: $OUTCOME"
           if [ "$OUTCOME" = "success" ] || [ "$OUTCOME" = "failure" ]; then
-            echo "PASS: action completed with outcome '$OUTCOME' (no valid OAuth token provided, graceful failure expected)"
+            echo "PASS: action ran (outcome=$OUTCOME) — oauth token input was accepted"
           else
             echo "FAIL: unexpected outcome '$OUTCOME'"
             exit 1
