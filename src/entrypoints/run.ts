@@ -44,11 +44,12 @@ import { runClaude } from "../../base-action/src/run-claude";
 import type { ClaudeRunResult } from "../../base-action/src/run-claude-sdk";
 import { setExecutionFileOutputIfPresent } from "../../base-action/src/execution-file";
 
-// Exported for unit testing. `set -o pipefail` makes curl's non-zero exit
-// propagate through the pipe so the install retry logic actually triggers
-// on 429/403 instead of silently succeeding (see #1136).
+// Exported for unit testing. Downloads the install script to a temp file first,
+// then executes it — avoids piping remote content directly to bash (see #1136).
+// `set -o pipefail` is no longer needed because curl's exit code is checked
+// directly when the download step runs.
 export function buildInstallCommand(version: string): string {
-  return `set -o pipefail; curl -fsSL https://claude.ai/install.sh | bash -s -- ${version}`;
+  return `INSTALL_SCRIPT=$(mktemp /tmp/claude-install-XXXXXX.sh) && curl -fsSL https://claude.ai/install.sh -o "$INSTALL_SCRIPT" && bash "$INSTALL_SCRIPT" ${version}`;
 }
 
 /**
