@@ -1,6 +1,9 @@
-name: Test workload identity federation configuration inputs
+name: Test workload identity federation auth inputs
 on:
   workflow_dispatch:
+permissions:
+  id-token: write
+  contents: read
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -17,7 +20,7 @@ jobs:
           anthropic_oidc_audience: "https://api.anthropic.com"
           prompt: "Say hello"
           trigger_phrase: "@claude"
-      - name: Assert action ran or failed gracefully
+      - name: Assert action ran (fails gracefully with fake federation credentials)
         env:
           OUTCOME: ${{ steps.action.outcome }}
           CONCLUSION: ${{ steps.action.outputs.conclusion }}
@@ -27,7 +30,7 @@ jobs:
           if [ "$OUTCOME" = "success" ]; then
             echo "PASS: action succeeded"
           elif [ "$OUTCOME" = "failure" ]; then
-            echo "PASS: action failed gracefully (expected without valid federation credentials or matching event)"
+            echo "PASS: action failed gracefully (expected with fake federation credentials)"
           else
             echo "FAIL: unexpected outcome '$OUTCOME'"
             exit 1
