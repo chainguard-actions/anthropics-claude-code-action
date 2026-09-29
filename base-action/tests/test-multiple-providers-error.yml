@@ -1,4 +1,4 @@
-name: Test Bedrock provider fails without AWS credentials
+name: Test multiple providers simultaneously fails
 on:
   workflow_dispatch:
 jobs:
@@ -13,7 +13,8 @@ jobs:
         with:
           prompt: "Say hello"
           use_bedrock: "true"
-          # No AWS_REGION or AWS credentials — should fail with Bedrock validation error
+          use_vertex: "true"
+          # Both Bedrock and Vertex enabled — should fail with mutual exclusivity error
 
       - name: Assert action failed gracefully with conclusion=failure
         env:
@@ -30,4 +31,4 @@ jobs:
             echo "FAIL: expected conclusion output 'failure' but got '$CONCLUSION'"
             exit 1
           fi
-          echo "PASS: action failed gracefully as expected with Bedrock but no AWS credentials"
+          echo "PASS: action failed gracefully as expected when multiple providers are set"

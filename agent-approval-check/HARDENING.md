@@ -16,11 +16,11 @@ Action **anthropics--claude-code-action--agent-approval-check/v1.0.211** was har
 
 ### script-injection (severity: high)
 
-Sub-rule (a): A `${{ ... }}` expression is interpolated directly inside a `run:` shell command string. The step runs `python "${{ github.action_path }}/agent_approval_check.py"`, embedding the `github.action_path` context value directly into the shell command before the shell ever sees it. Per the script-injection check, any `${{ ... }}` expression inside a `run:` block is a finding regardless of which context it reads from. The safe alternative is to use the pre-set `$GITHUB_ACTION_PATH` environment variable instead: `python "$GITHUB_ACTION_PATH/agent_approval_check.py"`
+Sub-rule (a): A ${{ }} expression is directly interpolated inside a run: shell command string. The step runs: `python "${{ github.action_path }}/agent_approval_check.py"`. Although github.action_path is not directly attacker-controlled, any ${{ ... }} expression inside a run: block undergoes YAML template substitution before the shell sees it, making it a script-injection risk. The safe alternative is to use the pre-set environment variable $GITHUB_ACTION_PATH instead, which avoids inline expression interpolation entirely.
 
 Locations:
 
-- `action.yml:56`
+- `action.yml:57`
 
 ## Iteration Notes
 
@@ -30,5 +30,5 @@ Locations:
 
 **Notes:**
 
-Replaced `python "${{ github.action_path }}/agent_approval_check.py"` with `python "$GITHUB_ACTION_PATH/agent_approval_check.py"` in action.yml line 56. GitHub Actions automatically sets the `GITHUB_ACTION_PATH` environment variable to the same value as `github.action_path`, so this is a safe, equivalent substitution that eliminates the direct `${{ }}` expression interpolation in the shell command string.
+Replaced `python "${{ github.action_path }}/agent_approval_check.py"` with `python "$GITHUB_ACTION_PATH/agent_approval_check.py"` in action.yml line 57. GitHub Actions automatically sets the GITHUB_ACTION_PATH environment variable to the same value as github.action_path, so using the pre-set env var avoids inline ${{ }} expression interpolation in the run: block entirely, eliminating the script-injection risk.
 

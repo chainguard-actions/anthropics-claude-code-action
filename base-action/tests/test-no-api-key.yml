@@ -1,4 +1,4 @@
-name: Test Bedrock provider fails without AWS credentials
+name: Test no API key fails gracefully
 on:
   workflow_dispatch:
 jobs:
@@ -12,8 +12,7 @@ jobs:
         continue-on-error: true
         with:
           prompt: "Say hello"
-          use_bedrock: "true"
-          # No AWS_REGION or AWS credentials — should fail with Bedrock validation error
+          # No anthropic_api_key provided — should fail with validation error
 
       - name: Assert action failed gracefully with conclusion=failure
         env:
@@ -30,4 +29,4 @@ jobs:
             echo "FAIL: expected conclusion output 'failure' but got '$CONCLUSION'"
             exit 1
           fi
-          echo "PASS: action failed gracefully as expected with Bedrock but no AWS credentials"
+          echo "PASS: action failed gracefully as expected with no API key"

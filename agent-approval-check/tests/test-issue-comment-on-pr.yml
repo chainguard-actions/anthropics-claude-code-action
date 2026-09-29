@@ -1,4 +1,4 @@
-name: Test issue_comment on non-PR exits cleanly (or fails on unsupported event)
+name: Test issue_comment on a PR (sentinel repo causes API failure)
 on:
   workflow_dispatch:
 jobs:
@@ -10,7 +10,7 @@ jobs:
       # Under act/workflow_dispatch, the action's own env block always sets
       # GH_EVENT_NAME=workflow_dispatch (an unsupported event). The script
       # raises ValueError and exits 1. We accept this as a graceful failure
-      # since the event cannot be simulated under workflow_dispatch.
+      # since the issue_comment event cannot be simulated under workflow_dispatch.
       - id: action
         uses: .
         continue-on-error: true
@@ -20,15 +20,15 @@ jobs:
           agent_emails: noreply@anthropic.com
           agent_logins: claude[bot],claude-code[bot]
 
-      - name: Assert action ran (exits cleanly for non-PR or fails on unsupported event)
+      - name: Assert action ran (API call fails gracefully on sentinel repo or unsupported event)
         env:
           OUTCOME: ${{ steps.action.outcome }}
         run: |
           echo "outcome: $OUTCOME"
           if [ "$OUTCOME" = "success" ]; then
-            echo "PASS: action exited cleanly (no PR to process)"
+            echo "PASS: action succeeded (unexpected but valid)"
           elif [ "$OUTCOME" = "failure" ]; then
-            echo "PASS: action failed gracefully (workflow_dispatch is unsupported — cannot simulate issue_comment under act)"
+            echo "PASS: action failed gracefully (sentinel repo not resolvable or workflow_dispatch unsupported)"
           else
             echo "FAIL: unexpected outcome '$OUTCOME'"
             exit 1
