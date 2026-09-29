@@ -1,4 +1,4 @@
-name: Test - Unsupported event type fails with error
+name: Test - No agent identities configured fails with error
 on:
   workflow_dispatch:
 
@@ -8,28 +8,29 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      # Under act the composite action always sets GH_EVENT_NAME from
-      # github.event_name (= workflow_dispatch), which is an unsupported event.
-      # The action will fail at event resolution with "Unsupported event".
+      # Agent identity validation happens before event resolution, so the action
+      # should fail with "No agent identities configured" regardless of the
+      # event type seen under act.
       - id: action
         uses: .
         continue-on-error: true
         with:
           github_token: ${{ github.token }}
           required_approvals: "2"
-          agent_emails: noreply@anthropic.com
-          agent_logins: claude[bot],claude-code[bot]
+          # Explicitly set both to empty to trigger the validation error
+          agent_emails: " "
+          agent_logins: " "
 
-      - name: Assert action failed due to unsupported event type
+      - name: Assert action failed due to missing agent identities
         if: always()
         env:
           OUTCOME: ${{ steps.action.outcome }}
         run: |
           echo "outcome: $OUTCOME"
           if [ "$OUTCOME" = "failure" ]; then
-            echo "PASS: action correctly rejected unsupported event type"
+            echo "PASS: action correctly rejected empty agent identities"
           elif [ "$OUTCOME" = "success" ]; then
-            echo "FAIL: action should have failed for unsupported event"
+            echo "FAIL: action should have failed with no agent identities configured"
             exit 1
           else
             echo "FAIL: unexpected outcome '$OUTCOME'"

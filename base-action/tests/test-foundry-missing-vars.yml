@@ -1,4 +1,4 @@
-name: Test Vertex AI provider missing required config error
+name: Test Foundry missing required vars fails gracefully
 on:
   workflow_dispatch:
 jobs:
@@ -12,10 +12,10 @@ jobs:
         continue-on-error: true
         with:
           prompt: "Say hello"
-          use_vertex: "true"
-          # No ANTHROPIC_VERTEX_PROJECT_ID or CLOUD_ML_REGION env vars set
+          use_foundry: "true"
+          # ANTHROPIC_FOUNDRY_RESOURCE and ANTHROPIC_FOUNDRY_BASE_URL not set — should fail validation
 
-      - name: Assert action failed due to missing Vertex AI config
+      - name: Assert action failed due to missing Foundry vars
         env:
           CONCLUSION: ${{ steps.action.outputs.conclusion }}
           OUTCOME: ${{ steps.action.outcome }}
@@ -23,11 +23,11 @@ jobs:
           echo "outcome: $OUTCOME"
           echo "conclusion: $CONCLUSION"
           if [ "$OUTCOME" != "failure" ]; then
-            echo "FAIL: expected step outcome 'failure' but got '$OUTCOME'"
+            echo "FAIL: expected action to fail when Foundry vars are missing, got outcome='$OUTCOME'"
             exit 1
           fi
           if [ "$CONCLUSION" != "failure" ]; then
-            echo "FAIL: expected conclusion output 'failure' but got '$CONCLUSION'"
+            echo "FAIL: expected conclusion='failure' but got '$CONCLUSION'"
             exit 1
           fi
-          echo "PASS: action failed gracefully when Vertex AI used without required config"
+          echo "PASS: action failed gracefully as expected when Foundry required vars are missing"

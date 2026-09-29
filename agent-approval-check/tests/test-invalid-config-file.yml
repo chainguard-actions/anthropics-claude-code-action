@@ -1,4 +1,4 @@
-name: Test invalid config_file causes failure
+name: Test - Invalid config file fails with error
 on:
   workflow_dispatch:
 
@@ -10,10 +10,10 @@ jobs:
 
       - name: Create invalid config file
         run: |
-          mkdir -p /tmp/fake-config
+          mkdir -p /tmp/fake-event
 
-          # Create an invalid config file (agent_emails is a string, not a list)
-          cat > /tmp/fake-config/bad-config.yaml <<'EOF'
+          # Write an invalid config file — agent_emails is a string, not a list
+          cat > /tmp/fake-event/bad-config.yaml <<'EOF'
           agent_emails: "this-should-be-a-list-not-a-string"
           agent_app_logins:
             - claude[bot]
@@ -21,19 +21,24 @@ jobs:
           exempt_head_branches: []
           EOF
 
+      # Config file validation happens before event resolution, so the action
+      # should fail due to the invalid config file regardless of the event type.
       - id: action
         uses: .
         continue-on-error: true
         with:
-          config_file: /tmp/fake-config/bad-config.yaml
+          github_token: ${{ github.token }}
+          required_approvals: "2"
+          config_file: /tmp/fake-event/bad-config.yaml
 
-      - name: Assert action failed (invalid config file format)
+      - name: Assert action failed due to invalid config file
+        if: always()
         env:
           OUTCOME: ${{ steps.action.outcome }}
         run: |
           echo "outcome: $OUTCOME"
           if [ "$OUTCOME" = "failure" ]; then
-            echo "PASS: action correctly failed with invalid config file"
+            echo "PASS: action correctly rejected invalid config file (agent_emails must be a list)"
           elif [ "$OUTCOME" = "success" ]; then
             echo "FAIL: action should have failed with invalid config file"
             exit 1

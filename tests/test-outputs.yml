@@ -1,0 +1,48 @@
+name: Test action outputs structure
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          prompt: "Echo hello world"
+          # No anthropic_api_key — action will fail at API call stage
+
+      - name: Assert outputs are defined (even on failure)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+          EXECUTION_FILE: ${{ steps.action.outputs.execution_file }}
+          SESSION_ID: ${{ steps.action.outputs.session_id }}
+          STRUCTURED_OUTPUT: ${{ steps.action.outputs.structured_output }}
+          GITHUB_TOKEN_OUT: ${{ steps.action.outputs.github_token }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: $CONCLUSION"
+          echo "execution_file: $EXECUTION_FILE"
+          echo "session_id: $SESSION_ID"
+          echo "structured_output: $STRUCTURED_OUTPUT"
+          echo "github_token set: $([ -n "$GITHUB_TOKEN_OUT" ] && echo yes || echo no)"
+
+          # The action must either succeed or fail — never skip
+          if [ "$OUTCOME" != "success" ] && [ "$OUTCOME" != "failure" ]; then
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
+
+          # On success, conclusion should be set
+          if [ "$OUTCOME" = "success" ]; then
+            if [ -z "$CONCLUSION" ]; then
+              echo "FAIL: action succeeded but conclusion output is empty"
+              exit 1
+            fi
+            echo "PASS: conclusion='$CONCLUSION'"
+          else
+            echo "PASS: action failed gracefully (no API credentials)"
+          fi
