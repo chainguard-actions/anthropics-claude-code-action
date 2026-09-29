@@ -1,4 +1,4 @@
-name: Test Bedrock without AWS_REGION fails gracefully
+name: Test Foundry without required vars fails gracefully
 on:
   workflow_dispatch:
 jobs:
@@ -12,10 +12,10 @@ jobs:
         continue-on-error: true
         with:
           prompt: "Say hello"
-          use_bedrock: "true"
-          # AWS_REGION is intentionally not set — should fail validation
+          use_foundry: "true"
+          # Neither ANTHROPIC_FOUNDRY_RESOURCE nor ANTHROPIC_FOUNDRY_BASE_URL is set
 
-      - name: Assert action failed gracefully due to missing AWS_REGION
+      - name: Assert action failed gracefully due to missing Foundry vars
         env:
           OUTCOME: ${{ steps.action.outcome }}
           CONCLUSION: ${{ steps.action.outputs.conclusion }}
@@ -23,9 +23,9 @@ jobs:
           echo "outcome: $OUTCOME"
           echo "conclusion: $CONCLUSION"
           if [ "$OUTCOME" = "failure" ]; then
-            echo "PASS: action failed as expected when use_bedrock=true but AWS_REGION is missing"
+            echo "PASS: action failed as expected when use_foundry=true but required vars are missing"
           elif [ "$OUTCOME" = "success" ]; then
-            echo "FAIL: action should have failed without AWS_REGION when using Bedrock"
+            echo "FAIL: action should have failed without ANTHROPIC_FOUNDRY_RESOURCE or ANTHROPIC_FOUNDRY_BASE_URL"
             exit 1
           else
             echo "FAIL: unexpected outcome '$OUTCOME'"
