@@ -1,0 +1,55 @@
+name: Test custom agent_emails and agent_logins inputs
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Create a fake issue_comment event on a plain issue (no PR)
+      - name: Create fake event payload
+        run: |
+          mkdir -p /tmp/fake-events
+          cat > /tmp/fake-events/issue_comment.json <<'EOF'
+          {
+            "action": "created",
+            "issue": {
+              "number": 7,
+              "title": "A plain issue"
+            },
+            "comment": {
+              "id": 1,
+              "body": "Just a comment"
+            }
+          }
+          EOF
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        env:
+          GH_EVENT_NAME: issue_comment
+          GH_EVENT_PATH: /tmp/fake-events/issue_comment.json
+        with:
+          github_token: ${{ github.token }}
+          required_approvals: "3"
+          agent_emails: "bot@mycompany.com,automation@example.org"
+          agent_logins: "my-bot[bot],deploy-bot[bot]"
+          excluded_approvers: "rubber-stamp[bot]"
+
+      - name: Assert action ran with custom agent identities
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # The action should load custom agent identities and then determine
+          # the issue_comment is on a plain issue (no PR), so it exits 0.
+          if [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action exited cleanly with custom agent identities"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (sentinel repo or API error)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

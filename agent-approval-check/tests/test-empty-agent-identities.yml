@@ -1,0 +1,55 @@
+name: Test empty agent identities fails
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Create a fake event payload
+      - name: Create fake event payload
+        run: |
+          mkdir -p /tmp/fake-events
+          cat > /tmp/fake-events/issue_comment.json <<'EOF'
+          {
+            "action": "created",
+            "issue": {
+              "number": 1,
+              "title": "A plain issue"
+            },
+            "comment": {
+              "id": 1,
+              "body": "Hello"
+            }
+          }
+          EOF
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        env:
+          GH_EVENT_NAME: issue_comment
+          GH_EVENT_PATH: /tmp/fake-events/issue_comment.json
+          # Override the defaults by setting empty values
+          AGENT_EMAILS: ""
+          AGENT_LOGINS: ""
+        with:
+          github_token: ${{ github.token }}
+          required_approvals: "2"
+          agent_emails: ""
+          agent_logins: ""
+
+      - name: Assert action failed due to empty agent identities
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # When both agent_emails and agent_logins are empty, the script
+          # should exit non-zero with an error about no agent identities.
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action correctly failed for empty agent identities"
+          else
+            echo "FAIL: expected failure for empty agent identities, got '$OUTCOME'"
+            exit 1
+          fi

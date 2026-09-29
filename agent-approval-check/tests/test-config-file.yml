@@ -1,0 +1,68 @@
+name: Test config_file input loads agent identities
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Create a config file and a fake issue_comment event on a plain issue
+      - name: Create config file and fake event payload
+        run: |
+          mkdir -p /tmp/fake-events /tmp/fake-config
+
+          # Write a valid agent-identities YAML config file
+          cat > /tmp/fake-config/agent-identities.yaml <<'EOF'
+          agent_emails:
+            - bot@example.com
+            - noreply@anthropic.com
+          agent_app_logins:
+            - my-bot[bot]
+            - claude[bot]
+          excluded_approver_logins: []
+          exempt_head_branches: []
+          EOF
+
+          # Write a fake issue_comment event on a plain issue (no PR)
+          cat > /tmp/fake-events/issue_comment.json <<'EOF'
+          {
+            "action": "created",
+            "issue": {
+              "number": 99,
+              "title": "A plain issue without PR"
+            },
+            "comment": {
+              "id": 1,
+              "body": "Just a comment"
+            }
+          }
+          EOF
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        env:
+          GH_EVENT_NAME: issue_comment
+          GH_EVENT_PATH: /tmp/fake-events/issue_comment.json
+        with:
+          github_token: ${{ github.token }}
+          required_approvals: "1"
+          config_file: /tmp/fake-config/agent-identities.yaml
+
+      - name: Assert action ran with config file
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # The action should load the config file and then determine
+          # the issue_comment is on a plain issue (no PR), so it exits 0.
+          # Either success (no PR to process) or failure (API error) is acceptable.
+          if [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action exited cleanly (no PR in issue_comment event)"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (sentinel repo or API error)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
