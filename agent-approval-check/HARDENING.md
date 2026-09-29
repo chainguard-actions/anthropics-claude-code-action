@@ -16,11 +16,11 @@ Action **anthropics--claude-code-action--agent-approval-check/v1.0.216** was har
 
 ### script-injection (severity: high)
 
-Sub-rule (a): A ${{ }} expression is interpolated directly inside a `run:` shell command string. The step runs: `python "${{ github.action_path }}/agent_approval_check.py"`. The expression `${{ github.action_path }}` is substituted by the YAML template engine before the shell processes the command, meaning any special characters in the value are parsed by the shell without quoting protection. The safe alternative is to use the pre-set environment variable `$GITHUB_ACTION_PATH` instead: `python "$GITHUB_ACTION_PATH/agent_approval_check.py"`.
+Sub-rule (a): A GitHub Actions expression `${{ github.action_path }}` is interpolated directly inside a `run:` shell command string: `run: python "${{ github.action_path }}/agent_approval_check.py"`. Any `${{ ... }}` expression directly in a `run:` block is a script-injection risk because the value is substituted into the shell command before the shell parses it. The safe alternative is to use the pre-set environment variable `$GITHUB_ACTION_PATH` instead, which is already available in composite action steps without any template substitution.
 
 Locations:
 
-- `action.yml:56`
+- `action.yml:57`
 
 ## Iteration Notes
 
@@ -30,5 +30,5 @@ Locations:
 
 **Notes:**
 
-Replaced `${{ github.action_path }}` in the `run:` shell command on line 56 of action.yml with the pre-set environment variable `$GITHUB_ACTION_PATH`. This eliminates the script-injection risk because the value is no longer interpolated by the YAML template engine before the shell processes the command — instead, the shell reads it directly from the environment where it is already safely set by GitHub Actions.
+Replaced `${{ github.action_path }}` in the `run:` shell command at line 57 of action.yml with the pre-set environment variable `$GITHUB_ACTION_PATH`. This variable is set by the GitHub Actions runner for composite actions and is available without any template substitution, eliminating the script-injection risk. No other changes were needed.
 

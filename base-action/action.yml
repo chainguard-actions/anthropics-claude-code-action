@@ -160,12 +160,11 @@ runs:
           INSTALL_SCRIPT=$(mktemp)
           for attempt in 1 2 3; do
             echo "Installation attempt $attempt..."
-            curl -fsSL https://claude.ai/install.sh -o "$INSTALL_SCRIPT"
             if command -v timeout &> /dev/null; then
               # Use --foreground to kill entire process group on timeout, --kill-after to send SIGKILL if SIGTERM fails
-              timeout --foreground --kill-after=10 120 bash "$INSTALL_SCRIPT" "$CLAUDE_CODE_VERSION" && break
+              timeout --foreground --kill-after=10 120 bash -c "curl -fsSL https://claude.ai/install.sh -o \"$INSTALL_SCRIPT\" && bash \"$INSTALL_SCRIPT\" \"$CLAUDE_CODE_VERSION\"" && break
             else
-              bash "$INSTALL_SCRIPT" "$CLAUDE_CODE_VERSION" && break
+              curl -fsSL https://claude.ai/install.sh -o "$INSTALL_SCRIPT" && bash "$INSTALL_SCRIPT" "$CLAUDE_CODE_VERSION" && break
             fi
             if [ $attempt -eq 3 ]; then
               echo "Failed to install Claude Code after 3 attempts"

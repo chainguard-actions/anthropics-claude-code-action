@@ -1,4 +1,4 @@
-name: Test pull_request event triggers API call (sentinel repo)
+name: Test issue_comment on a PR triggers approval check
 on:
   workflow_dispatch:
 jobs:
@@ -15,7 +15,7 @@ jobs:
         uses: .
         continue-on-error: true
         env:
-          GH_PR_NUMBER: "99"
+          GH_PR_NUMBER: "55"
         with:
           github_token: ${{ github.token }}
           required_approvals: "2"

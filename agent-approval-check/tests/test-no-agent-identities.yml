@@ -1,4 +1,4 @@
-name: Test no agent identities configured
+name: Test action fails when no agent identities configured
 on:
   workflow_dispatch:
 jobs:
@@ -7,8 +7,6 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      # Pass empty agent_emails and agent_logins — the script should exit with error
-      # before reaching event resolution
       - id: action
         uses: .
         continue-on-error: true
@@ -24,9 +22,9 @@ jobs:
         run: |
           echo "outcome: $OUTCOME"
           if [ "$OUTCOME" = "failure" ]; then
-            echo "PASS: action failed as expected when no agent identities are configured"
+            echo "PASS: action correctly failed when no agent identities configured"
           elif [ "$OUTCOME" = "success" ]; then
-            echo "FAIL: expected failure for empty agent identities but got success"
+            echo "FAIL: action should fail when agent_emails and agent_logins are both empty"
             exit 1
           else
             echo "FAIL: unexpected outcome '$OUTCOME'"

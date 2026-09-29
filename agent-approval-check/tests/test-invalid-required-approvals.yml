@@ -1,4 +1,4 @@
-name: Test invalid required_approvals (must be >= 1)
+name: Test action fails when required_approvals is less than 1
 on:
   workflow_dispatch:
 jobs:
@@ -13,8 +13,8 @@ jobs:
         with:
           github_token: ${{ github.token }}
           required_approvals: "0"
-          agent_emails: "noreply@anthropic.com"
-          agent_logins: "claude[bot],claude-code[bot]"
+          agent_emails: noreply@anthropic.com
+          agent_logins: claude[bot],claude-code[bot]
 
       - name: Assert action failed due to invalid required_approvals
         env:
@@ -22,9 +22,9 @@ jobs:
         run: |
           echo "outcome: $OUTCOME"
           if [ "$OUTCOME" = "failure" ]; then
-            echo "PASS: action failed as expected when required_approvals=0"
+            echo "PASS: action correctly failed when required_approvals < 1"
           elif [ "$OUTCOME" = "success" ]; then
-            echo "FAIL: expected failure for required_approvals=0 but got success"
+            echo "FAIL: action should fail when required_approvals is 0"
             exit 1
           else
             echo "FAIL: unexpected outcome '$OUTCOME'"
