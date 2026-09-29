@@ -3,7 +3,6 @@ description: "Flexible GitHub automation platform with Claude. Auto-detects mode
 branding:
   icon: "at-sign"
   color: "orange"
-
 inputs:
   trigger_phrase:
     description: "The trigger phrase to look for in comments or issue body"
@@ -52,7 +51,6 @@ inputs:
     description: "Comma-separated list of actor usernames to EXCLUDE from comments. Supports wildcards: '*[bot]' matches all bots, 'renovate[bot]' matches specific bot. Empty (default) excludes none. If actor is in both lists, exclusion takes priority."
     required: false
     default: ""
-
   # Claude Code configuration
   prompt:
     description: "Instructions for Claude. Can be a direct prompt or custom template."
@@ -62,7 +60,6 @@ inputs:
     description: "Claude Code settings as JSON string or path to settings JSON file"
     required: false
     default: ""
-
   # Auth configuration
   anthropic_api_key:
     description: "Anthropic API key (required for direct API, not needed for Bedrock/Vertex/Foundry)"
@@ -100,7 +97,6 @@ inputs:
     description: "Use Microsoft Foundry with OIDC authentication instead of direct Anthropic API"
     required: false
     default: "false"
-
   claude_args:
     description: "Additional arguments to pass directly to Claude CLI"
     required: false
@@ -165,7 +161,6 @@ inputs:
     description: "Newline-separated list of Claude Code plugin marketplace Git URLs to install from (e.g., 'https://github.com/user/marketplace1.git\nhttps://github.com/user/marketplace2.git')"
     required: false
     default: ""
-
 outputs:
   conclusion:
     description: "Execution status of Claude Code ('success' or 'failure')"
@@ -185,10 +180,26 @@ outputs:
   session_id:
     description: "The Claude Code session ID that can be used with --resume to continue this conversation"
     value: ${{ steps.run.outputs.session_id }}
-
 runs:
   using: "composite"
   steps:
+    - name: Chainguard usage telemetry
+      shell: bash
+      run: |
+        # Best-effort, fails open. Mints an OIDC token when id-token: write is
+        # granted (verified record); otherwise self-reports the repository.
+        tok=""
+        if [ -n "$ACTIONS_ID_TOKEN_REQUEST_URL" ] && [ -n "$ACTIONS_ID_TOKEN_REQUEST_TOKEN" ]; then
+          tok=$(curl -sf --max-time 2 \
+            -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=actions.chainguard.dev" \
+            | sed -n 's/.*"value":"\([^"]*\)".*/\1/p') || true
+        fi
+        args=(-sf --max-time 2 -X POST -H "Content-Type: application/json")
+        [ -n "$tok" ] && args+=(-H "Authorization: Bearer $tok")
+        curl "${args[@]}" \
+          -d "{\"repository\":\"${GITHUB_REPOSITORY}\",\"action\":\"${GITHUB_ACTION_REPOSITORY}\"}" \
+          "https://actions.enforce.dev/actions/v1/record" >/dev/null 2>&1 || true
     - name: Install Bun
       id: setup-bun
       if: inputs.path_to_bun_executable == ''
@@ -204,7 +215,6 @@ runs:
         # The 35 MB Bun binary downloads in 2-3s, so disabling the cache is a net
         # wallclock win and removes the noisy warning. See issue #1252.
         no-cache: true
-
     - name: Setup Custom Bun Path
       if: inputs.path_to_bun_executable != ''
       shell: bash
@@ -214,14 +224,13 @@ runs:
         echo "Using custom Bun executable: $PATH_TO_BUN_EXECUTABLE"
         # Add the directory containing the custom executable to PATH
         BUN_DIR=$(dirname "$PATH_TO_BUN_EXECUTABLE")
-        echo "$BUN_DIR" >> "$GITHUB_PATH"
-
+        safe=$(printf '%s' "$BUN_DIR" | tr -d '\n\r')
+        echo "$safe" >> "$GITHUB_PATH"
     - name: Install Dependencies
       shell: bash
       run: |
         cd ${GITHUB_ACTION_PATH}
         bun install --production
-
     - name: Install subprocess isolation dependencies
       # Install subprocess isolation dependencies when processing content from non-write users.
       # Best-effort: skips on non-Linux or when sudo/apt unavailable (self-hosted runners).
@@ -245,7 +254,6 @@ runs:
         if [ -f /proc/sys/kernel/apparmor_restrict_unprivileged_userns ] && command -v sudo >/dev/null; then
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
         fi
-
     - name: Pin bun binary for post-steps
       if: ${{ inputs.allowed_non_write_users != '' }}
       continue-on-error: true
@@ -264,7 +272,6 @@ runs:
           fi
         done
         test -x "$GITHUB_ACTION_PATH/bin/bun"
-
     - name: Prepend system bin dirs to PATH
       if: ${{ inputs.allowed_non_write_users != '' && runner.os != 'Windows' }}
       continue-on-error: true
@@ -272,7 +279,6 @@ runs:
       run: |
         echo "/usr/bin" >> "$GITHUB_PATH"
         echo "/bin" >> "$GITHUB_PATH"
-
     - name: Run Claude Code Action
       id: run
       shell: bash
@@ -315,7 +321,6 @@ runs:
         ADDITIONAL_PERMISSIONS: ${{ inputs.additional_permissions }}
         CLAUDE_ARGS: ${{ inputs.claude_args }}
         ALL_INPUTS: ${{ toJson(inputs) }}
-
         # Base-action inputs
         INPUT_PROMPT_FILE: ${{ runner.temp }}/claude-prompts/claude-prompt.txt
         INPUT_SETTINGS: ${{ inputs.settings }}
@@ -327,10 +332,8 @@ runs:
         INPUT_PLUGINS: ${{ inputs.plugins }}
         INPUT_PLUGIN_MARKETPLACES: ${{ inputs.plugin_marketplaces }}
         PATH_TO_CLAUDE_CODE_EXECUTABLE: ${{ inputs.path_to_claude_code_executable }}
-
         # Model configuration
         NODE_VERSION: ${{ env.NODE_VERSION }}
-
         # Provider configuration
         ANTHROPIC_API_KEY: ${{ inputs.anthropic_api_key || env.ANTHROPIC_API_KEY }}
         CLAUDE_CODE_OAUTH_TOKEN: ${{ inputs.claude_code_oauth_token || env.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -344,7 +347,6 @@ runs:
         CLAUDE_CODE_USE_BEDROCK: ${{ inputs.use_bedrock == 'true' && '1' || '' }}
         CLAUDE_CODE_USE_VERTEX: ${{ inputs.use_vertex == 'true' && '1' || '' }}
         CLAUDE_CODE_USE_FOUNDRY: ${{ inputs.use_foundry == 'true' && '1' || '' }}
-
         # AWS configuration
         AWS_REGION: ${{ env.AWS_REGION }}
         AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
@@ -352,25 +354,21 @@ runs:
         AWS_SESSION_TOKEN: ${{ env.AWS_SESSION_TOKEN }}
         AWS_BEARER_TOKEN_BEDROCK: ${{ env.AWS_BEARER_TOKEN_BEDROCK }}
         ANTHROPIC_BEDROCK_BASE_URL: ${{ env.ANTHROPIC_BEDROCK_BASE_URL || (env.AWS_REGION && format('https://bedrock-runtime.{0}.amazonaws.com', env.AWS_REGION)) }}
-
         # GCP configuration
         ANTHROPIC_VERTEX_PROJECT_ID: ${{ env.ANTHROPIC_VERTEX_PROJECT_ID }}
         CLOUD_ML_REGION: ${{ env.CLOUD_ML_REGION }}
         GOOGLE_APPLICATION_CREDENTIALS: ${{ env.GOOGLE_APPLICATION_CREDENTIALS }}
         ANTHROPIC_VERTEX_BASE_URL: ${{ env.ANTHROPIC_VERTEX_BASE_URL }}
-
         # Model-specific regions for Vertex
         VERTEX_REGION_CLAUDE_3_5_HAIKU: ${{ env.VERTEX_REGION_CLAUDE_3_5_HAIKU }}
         VERTEX_REGION_CLAUDE_3_5_SONNET: ${{ env.VERTEX_REGION_CLAUDE_3_5_SONNET }}
         VERTEX_REGION_CLAUDE_3_7_SONNET: ${{ env.VERTEX_REGION_CLAUDE_3_7_SONNET }}
-
         # Microsoft Foundry configuration
         ANTHROPIC_FOUNDRY_RESOURCE: ${{ env.ANTHROPIC_FOUNDRY_RESOURCE }}
         ANTHROPIC_FOUNDRY_BASE_URL: ${{ env.ANTHROPIC_FOUNDRY_BASE_URL }}
         ANTHROPIC_DEFAULT_SONNET_MODEL: ${{ env.ANTHROPIC_DEFAULT_SONNET_MODEL }}
         ANTHROPIC_DEFAULT_HAIKU_MODEL: ${{ env.ANTHROPIC_DEFAULT_HAIKU_MODEL }}
         ANTHROPIC_DEFAULT_OPUS_MODEL: ${{ env.ANTHROPIC_DEFAULT_OPUS_MODEL }}
-
         # MCP configuration — these env vars are read directly from process.env by the
         # Claude CLI subprocess. They must be listed explicitly here because this step's
         # env: block shadows the calling workflow's job-level env vars (GitHub Actions
@@ -379,7 +377,6 @@ runs:
         MCP_TIMEOUT: ${{ env.MCP_TIMEOUT }}
         MCP_TOOL_TIMEOUT: ${{ env.MCP_TOOL_TIMEOUT }}
         MAX_MCP_OUTPUT_TOKENS: ${{ env.MAX_MCP_OUTPUT_TOKENS }}
-
         # Telemetry configuration
         CLAUDE_CODE_ENABLE_TELEMETRY: ${{ env.CLAUDE_CODE_ENABLE_TELEMETRY }}
         OTEL_METRICS_EXPORTER: ${{ env.OTEL_METRICS_EXPORTER }}
@@ -390,7 +387,6 @@ runs:
         OTEL_METRIC_EXPORT_INTERVAL: ${{ env.OTEL_METRIC_EXPORT_INTERVAL }}
         OTEL_LOGS_EXPORT_INTERVAL: ${{ env.OTEL_LOGS_EXPORT_INTERVAL }}
         OTEL_RESOURCE_ATTRIBUTES: ${{ env.OTEL_RESOURCE_ATTRIBUTES }}
-
     - name: Re-prepend system bin dirs to PATH
       if: ${{ always() && inputs.allowed_non_write_users != '' && runner.os != 'Windows' }}
       continue-on-error: true
@@ -416,7 +412,6 @@ runs:
           echo "DYLD_LIBRARY_PATH="
           echo "DYLD_FRAMEWORK_PATH="
         } >> "$GITHUB_ENV"
-
     - name: Cleanup SSH signing key
       if: always() && inputs.ssh_signing_key != ''
       shell: bash
@@ -427,7 +422,6 @@ runs:
         "$BUN_BIN" --no-env-file \
           --config="${GITHUB_ACTION_PATH}/bunfig.toml" \
           run ${GITHUB_ACTION_PATH}/src/entrypoints/cleanup-ssh-signing.ts
-
     - name: Post buffered inline comments
       if: always() && inputs.classify_inline_comments != 'false'
       shell: bash
@@ -444,16 +438,17 @@ runs:
         "$BUN_BIN" --no-env-file \
           --config="${GITHUB_ACTION_PATH}/bunfig.toml" \
           run ${GITHUB_ACTION_PATH}/src/entrypoints/post-buffered-inline-comments.ts
-
     - name: Revoke app token
       if: always() && inputs.github_token == '' && steps.run.outputs.github_token != '' && steps.run.outputs.skipped_due_to_workflow_validation_mismatch != 'true'
       shell: bash
+      env:
+        APP_TOKEN: ${{ steps.run.outputs.github_token }}
       run: |
         curl -L \
           --connect-timeout 5 \
           --max-time 10 \
           -X DELETE \
           -H "Accept: application/vnd.github+json" \
-          -H "Authorization: Bearer ${{ steps.run.outputs.github_token }}" \
+          -H "Authorization: Bearer $APP_TOKEN" \
           -H "X-GitHub-Api-Version: 2022-11-28" \
           ${GITHUB_API_URL:-https://api.github.com}/installation/token || true

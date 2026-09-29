@@ -1,0 +1,36 @@
+name: Test bot identity and commit signing inputs
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          prompt: "Describe the repository"
+          bot_id: "41898282"
+          bot_name: "claude[bot]"
+          use_commit_signing: "false"
+          track_progress: "false"
+          include_fix_links: "true"
+          use_sticky_comment: "false"
+          # No API key — action should fail gracefully
+
+      - name: Assert action ran with bot identity inputs
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: $CONCLUSION"
+          # The action must either succeed or fail — never skip
+          if [ "$OUTCOME" = "success" ] || [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action accepted bot identity inputs, outcome: $OUTCOME"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

@@ -43,9 +43,12 @@ jobs:
           EOF
 
       - name: Create triage prompt
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
           mkdir -p /tmp/claude-prompts
-          cat > /tmp/claude-prompts/triage-prompt.txt << 'EOF'
+          cat > /tmp/claude-prompts/triage-prompt.txt << EOF
           You're an issue triage assistant for GitHub issues. Your task is to analyze the issue and select appropriate labels from the provided list.
 
           IMPORTANT: Don't post any comments or messages to the issue. Your only action should be to apply labels.
@@ -56,7 +59,7 @@ jobs:
 
           TASK OVERVIEW:
 
-          1. First, fetch the list of labels available in this repository by running: `gh label list`. Run exactly this command with nothing else.
+          1. First, fetch the list of labels available in this repository by running: \`gh label list\`. Run exactly this command with nothing else.
 
           2. Next, use the GitHub tools to get context about the issue:
              - You have access to these tools:
@@ -95,9 +98,6 @@ jobs:
           - Your ONLY action should be to apply labels using mcp__github__update_issue
           - It's okay to not add any labels if none are clearly applicable
           EOF
-        env:
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
 
       - name: Run Claude Code for Issue Triage
         uses: anthropics/claude-code-base-action@e8132bc5e637a42c27763fc757faa37e1ee43b34 # beta

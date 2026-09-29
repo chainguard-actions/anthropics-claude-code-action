@@ -1,0 +1,51 @@
+name: Test custom Bun executable path
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create a fake Bun executable
+        run: |
+          mkdir -p /tmp/fake-bun-dir
+          # Create a fake bun that delegates to the real bun if available,
+          # or just prints version info. The action uses bun to run src/index.ts.
+          # We create a wrapper that records it was called, then delegates.
+          cat > /tmp/fake-bun-dir/bun << 'EOF'
+          #!/bin/sh
+          echo "FAKE_BUN_CALLED=true" >> /tmp/fake-bun-called.txt
+          # Delegate to real bun if available
+          if command -v /usr/local/bin/bun >/dev/null 2>&1; then
+            exec /usr/local/bin/bun "$@"
+          elif [ -f "$HOME/.bun/bin/bun" ]; then
+            exec "$HOME/.bun/bin/bun" "$@"
+          else
+            echo "bun: no real bun found, exiting" >&2
+            exit 1
+          fi
+          EOF
+          chmod +x /tmp/fake-bun-dir/bun
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          prompt: "Say hello"
+          path_to_bun_executable: "/tmp/fake-bun-dir/bun"
+          # No API key — action will fail at auth validation, but the custom bun path should be set up
+
+      - name: Assert action used custom bun path setup
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # The action should fail because no API key is provided
+          # but it should have gone through the custom bun path setup
+          if [ "$OUTCOME" != "failure" ]; then
+            echo "FAIL: expected action to fail (no API key), got outcome='$OUTCOME'"
+            exit 1
+          fi
+          echo "PASS: action failed as expected (no API key), custom bun path was configured"

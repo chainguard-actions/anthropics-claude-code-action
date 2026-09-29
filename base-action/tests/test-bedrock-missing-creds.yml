@@ -1,4 +1,4 @@
-name: Test partial workload identity configuration fails
+name: Test Bedrock mode fails without AWS credentials
 on:
   workflow_dispatch:
 
@@ -13,10 +13,10 @@ jobs:
         continue-on-error: true
         with:
           prompt: "Say hello"
-          anthropic_federation_rule_id: "fdrl_test123"
-          # anthropic_organization_id is missing — partial workload identity should fail
+          use_bedrock: "true"
+          # No AWS_REGION, no AWS credentials — should fail validation
 
-      - name: Assert action failed with partial workload identity error
+      - name: Assert action failed with Bedrock credential error
         env:
           OUTCOME: ${{ steps.action.outcome }}
           CONCLUSION: ${{ steps.action.outputs.conclusion }}
@@ -24,10 +24,10 @@ jobs:
           echo "outcome: $OUTCOME"
           echo "conclusion: $CONCLUSION"
           if [ "$OUTCOME" != "failure" ]; then
-            echo "FAIL: expected action to fail with partial workload identity config, got outcome='$OUTCOME'"
+            echo "FAIL: expected action to fail without AWS credentials for Bedrock, got outcome='$OUTCOME'"
             exit 1
           fi
-          echo "PASS: action failed as expected when only one workload identity field is provided"
+          echo "PASS: action failed as expected when Bedrock mode is used without AWS credentials"
           if [ -n "$CONCLUSION" ] && [ "$CONCLUSION" != "failure" ]; then
             echo "FAIL: expected conclusion to be 'failure' or empty, got '$CONCLUSION'"
             exit 1

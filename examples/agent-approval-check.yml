@@ -28,7 +28,7 @@ jobs:
     if: github.event_name != 'issue_comment' || github.event.issue.pull_request
     runs-on: ubuntu-latest
     steps:
-      - uses: anthropics/claude-code-action/agent-approval-check@main
+      - uses: anthropics/claude-code-action/agent-approval-check@8ce9314fa9a404564fa7e954cd84f25bcba2b829 # main
         with:
           required_approvals: 2
           agent_emails: noreply@anthropic.com

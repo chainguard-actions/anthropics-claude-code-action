@@ -1,9 +1,14 @@
-name: Test pull_request event with sentinel repo (API call fails gracefully)
+name: Test basic PR event handling
 on:
   workflow_dispatch:
 jobs:
   test:
     runs-on: ubuntu-latest
+    # GH_PR_NUMBER bypasses event parsing in the Python script.
+    # Under act, github.event_name is always workflow_dispatch (unsupported),
+    # so we must set GH_PR_NUMBER to skip resolve_pr_number() entirely.
+    env:
+      GH_PR_NUMBER: "42"
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
@@ -15,20 +20,16 @@ jobs:
           required_approvals: "2"
           agent_emails: "noreply@anthropic.com"
           agent_logins: "claude[bot],claude-code[bot]"
-        # Note: the composite action hardcodes GH_EVENT_NAME from github.event_name
-        # (always "workflow_dispatch" under this trigger) and GH_REPOSITORY from
-        # github.repository (the sentinel repo). The action is expected to fail either
-        # due to the unsupported event or due to the sentinel repo API call failing.
 
-      - name: Assert action ran (succeeded or failed gracefully)
+      - name: Assert action ran (API calls fail on sentinel repo or succeed)
         env:
           OUTCOME: ${{ steps.action.outcome }}
         run: |
           echo "outcome: $OUTCOME"
           if [ "$OUTCOME" = "success" ]; then
-            echo "PASS: action succeeded (unexpected but acceptable)"
+            echo "PASS: action succeeded"
           elif [ "$OUTCOME" = "failure" ]; then
-            echo "PASS: action failed gracefully (unsupported event or sentinel repo not resolvable)"
+            echo "PASS: action failed gracefully (sentinel repo is not resolvable via API)"
           else
             echo "FAIL: unexpected outcome '$OUTCOME'"
             exit 1

@@ -1,4 +1,4 @@
-name: Test workflow_run event with no PRs exits cleanly
+name: Test issue_comment on plain issue exits cleanly
 on:
   workflow_dispatch:
 jobs:
@@ -10,7 +10,7 @@ jobs:
       # Under act, github.event_name is always workflow_dispatch, which the
       # action passes as GH_EVENT_NAME. The Python script raises ValueError for
       # unsupported events (including workflow_dispatch), so the action fails.
-      # We cannot simulate workflow_run under act's workflow_dispatch trigger.
+      # We cannot simulate issue_comment under act's workflow_dispatch trigger.
       # This test verifies the action fails gracefully (not with an unhandled
       # crash) when the event type is not one it handles.
       - id: action
@@ -18,9 +18,9 @@ jobs:
         continue-on-error: true
         with:
           github_token: ${{ github.token }}
-          required_approvals: "1"
+          required_approvals: "2"
           agent_emails: "noreply@anthropic.com"
-          agent_logins: "claude[bot]"
+          agent_logins: "claude[bot],claude-code[bot]"
 
       - name: Assert action failed gracefully (unsupported event under act harness)
         env:
