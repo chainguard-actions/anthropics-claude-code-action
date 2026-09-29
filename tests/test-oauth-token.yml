@@ -1,4 +1,4 @@
-name: Test workload identity federation inputs
+name: Test claude_code_oauth_token input
 on:
   workflow_dispatch:
 jobs:
@@ -10,14 +10,10 @@ jobs:
         uses: .
         continue-on-error: true
         with:
-          anthropic_federation_rule_id: "fdrl_fake_rule_id_for_coverage"
-          anthropic_organization_id: "00000000-0000-0000-0000-000000000000"
-          anthropic_service_account_id: "svac_fake_service_account_id"
-          anthropic_workspace_id: "wrkspc_fake_workspace_id"
-          anthropic_oidc_audience: "https://api.anthropic.com"
+          claude_code_oauth_token: "fake-oauth-token-for-coverage-testing"
           prompt: "Say hello"
           trigger_phrase: "@claude"
-      - name: Assert action ran (fails gracefully with fake federation credentials)
+      - name: Assert action ran (fails gracefully with fake OAuth token)
         env:
           OUTCOME: ${{ steps.action.outcome }}
           CONCLUSION: ${{ steps.action.outputs.conclusion }}
@@ -27,7 +23,7 @@ jobs:
           if [ "$OUTCOME" = "success" ]; then
             echo "PASS: action succeeded"
           elif [ "$OUTCOME" = "failure" ]; then
-            echo "PASS: action failed gracefully (expected with fake federation credentials)"
+            echo "PASS: action failed gracefully (expected with fake OAuth token)"
           else
             echo "FAIL: unexpected outcome '$OUTCOME'"
             exit 1

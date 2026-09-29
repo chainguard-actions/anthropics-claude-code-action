@@ -16,11 +16,11 @@ Action **anthropics--claude-code-action--agent-approval-check/v1** was hardened 
 
 ### script-injection (severity: high)
 
-Sub-rule (a) violation: A `${{ ... }}` GitHub Actions expression is directly interpolated inside a `run:` shell command string. On line 57 of action.yml, the command `python "${{ github.action_path }}/agent_approval_check.py"` embeds `${{ github.action_path }}` directly in the shell string. Any `${{ ... }}` expression inside a `run:` block is a script-injection risk because YAML template substitution occurs before the shell ever sees the value. The safe fix is to use the pre-set environment variable `$GITHUB_ACTION_PATH` instead: `python "$GITHUB_ACTION_PATH/agent_approval_check.py"`.
+Sub-rule (a): A ${{ }} expression is directly interpolated inside a `run:` shell command string. The line `run: python "${{ github.action_path }}/agent_approval_check.py"` embeds `${{ github.action_path }}` directly into the shell command before the shell ever sees it. Even though `github.action_path` is GitHub-controlled rather than attacker-controlled, any `${{ ... }}` expression inside a `run:` block is a script-injection finding per the check rules — YAML template substitution happens before shell quoting, so the value is never safely quoted. The fix is to use the pre-set environment variable `$GITHUB_ACTION_PATH` instead: `run: python "$GITHUB_ACTION_PATH/agent_approval_check.py"`.
 
 Locations:
 
-- `action.yml:57`
+- `action.yml:56`
 
 ## Iteration Notes
 
@@ -30,5 +30,5 @@ Locations:
 
 **Notes:**
 
-Fixed script-injection on line 57 of action.yml: replaced `python "${{ github.action_path }}/agent_approval_check.py"` with `python "$GITHUB_ACTION_PATH/agent_approval_check.py"`. GitHub Actions automatically sets the `GITHUB_ACTION_PATH` environment variable to the same value as `github.action_path`, so this is a safe, equivalent substitution that eliminates the YAML template injection risk.
+Fixed script-injection in hardened/action/action.yml line 56: replaced `python "${{ github.action_path }}/agent_approval_check.py"` with `python "$GITHUB_ACTION_PATH/agent_approval_check.py"`. The pre-set environment variable $GITHUB_ACTION_PATH is equivalent in value but avoids YAML template substitution before shell execution, eliminating the injection vector.
 

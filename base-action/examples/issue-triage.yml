@@ -20,7 +20,7 @@ jobs:
 
       - name: Setup GitHub MCP Server
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN_VALUE: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p /tmp/mcp-config
           cat > /tmp/mcp-config/mcp-servers.json << EOF
@@ -37,7 +37,7 @@ jobs:
                   "ghcr.io/github/github-mcp-server:sha-23fa0dd"
                 ],
                 "env": {
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": "$GH_TOKEN"
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_TOKEN_VALUE"
                 }
               }
             }
@@ -46,8 +46,8 @@ jobs:
 
       - name: Create triage prompt
         env:
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
           GITHUB_REPOSITORY: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
           mkdir -p /tmp/claude-prompts
           cat > /tmp/claude-prompts/triage-prompt.txt << EOF
