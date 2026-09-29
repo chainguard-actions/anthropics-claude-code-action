@@ -1,4 +1,4 @@
-name: Test Bedrock provider missing AWS_REGION
+name: Test multiple providers simultaneously fails
 on:
   workflow_dispatch:
 jobs:
@@ -13,9 +13,10 @@ jobs:
         with:
           prompt: "Say hello"
           use_bedrock: "true"
-          # No AWS_REGION set — should fail validation
+          use_vertex: "true"
+          # Both providers set — should fail validation with mutual exclusivity error
 
-      - name: Assert action failed gracefully with missing AWS_REGION
+      - name: Assert action failed gracefully with multiple providers
         env:
           OUTCOME: ${{ steps.action.outcome }}
           CONCLUSION: ${{ steps.action.outputs.conclusion }}
@@ -23,7 +24,7 @@ jobs:
           echo "outcome: $OUTCOME"
           echo "conclusion: $CONCLUSION"
           if [ "$OUTCOME" != "failure" ]; then
-            echo "FAIL: expected action to fail when AWS_REGION is missing for Bedrock, got outcome='$OUTCOME'"
+            echo "FAIL: expected action to fail when multiple providers are set simultaneously, got outcome='$OUTCOME'"
             exit 1
           fi
-          echo "PASS: action failed as expected when Bedrock is selected without AWS_REGION"
+          echo "PASS: action failed as expected when multiple providers are specified"

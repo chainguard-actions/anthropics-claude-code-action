@@ -1,4 +1,4 @@
-name: Test issue_comment on non-PR exits cleanly
+name: Test basic usage - no PR context (workflow_dispatch is unsupported event)
 on:
   workflow_dispatch:
 jobs:
@@ -13,18 +13,19 @@ jobs:
         with:
           github_token: ${{ github.token }}
           required_approvals: "2"
-          agent_emails: "noreply@anthropic.com"
-          agent_logins: "claude[bot],claude-code[bot]"
+          agent_emails: noreply@anthropic.com
+          agent_logins: claude[bot],claude-code[bot]
 
-      - name: Assert action ran (unsupported event or API failure is acceptable)
+      - name: Assert action ran (workflow_dispatch is unsupported so failure is expected)
+        if: always()
         env:
           OUTCOME: ${{ steps.action.outcome }}
         run: |
           echo "outcome: $OUTCOME"
-          if [ "$OUTCOME" = "success" ]; then
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (workflow_dispatch is an unsupported event)"
+          elif [ "$OUTCOME" = "success" ]; then
             echo "PASS: action succeeded"
-          elif [ "$OUTCOME" = "failure" ]; then
-            echo "PASS: action failed gracefully (workflow_dispatch is not a supported event for this action)"
           else
             echo "FAIL: unexpected outcome '$OUTCOME'"
             exit 1

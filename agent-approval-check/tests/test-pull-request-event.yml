@@ -1,4 +1,4 @@
-name: Test pull_request event triggers API call (sentinel repo graceful failure)
+name: Test pull_request event triggers PR processing
 on:
   workflow_dispatch:
 jobs:
@@ -13,18 +13,19 @@ jobs:
         with:
           github_token: ${{ github.token }}
           required_approvals: "2"
-          agent_emails: "noreply@anthropic.com"
-          agent_logins: "claude[bot],claude-code[bot]"
+          agent_emails: noreply@anthropic.com
+          agent_logins: claude[bot],claude-code[bot]
 
-      - name: Assert action ran (API call fails gracefully on sentinel repo)
+      - name: Assert action ran (succeeds or fails gracefully)
+        if: always()
         env:
           OUTCOME: ${{ steps.action.outcome }}
         run: |
           echo "outcome: $OUTCOME"
           if [ "$OUTCOME" = "success" ]; then
-            echo "PASS: action succeeded (real repo resolved)"
+            echo "PASS: action succeeded"
           elif [ "$OUTCOME" = "failure" ]; then
-            echo "PASS: action failed gracefully (sentinel repo is not resolvable via GitHub API)"
+            echo "PASS: action failed gracefully (workflow_dispatch is unsupported or sentinel repo is not resolvable)"
           else
             echo "FAIL: unexpected outcome '$OUTCOME'"
             exit 1

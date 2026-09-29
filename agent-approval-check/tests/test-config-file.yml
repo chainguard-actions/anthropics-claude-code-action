@@ -7,10 +7,11 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Create agent-identities config file
+      # Create a valid agent-identities config file
+      - name: Create agent identities config file
         run: |
-          mkdir -p /tmp/test-config
-          cat > /tmp/test-config/agent-identities.yaml <<'EOF'
+          mkdir -p /tmp/fake-config
+          cat > /tmp/fake-config/agent-identities.yaml << 'EOF'
           agent_emails:
             - noreply@anthropic.com
             - bot@example.com
@@ -19,8 +20,6 @@ jobs:
             - claude-code[bot]
           excluded_approver_logins: []
           exempt_head_branches: []
-          exempt_path_prefixes: {}
-          protected_bases: {}
           EOF
 
       - id: action
@@ -28,17 +27,19 @@ jobs:
         continue-on-error: true
         with:
           github_token: ${{ github.token }}
-          config_file: /tmp/test-config/agent-identities.yaml
+          required_approvals: "1"
+          config_file: /tmp/fake-config/agent-identities.yaml
 
-      - name: Assert action ran (config_file was loaded; failure is acceptable due to unsupported event)
+      - name: Assert action ran (config_file accepted; workflow_dispatch is unsupported so failure is expected)
+        if: always()
         env:
           OUTCOME: ${{ steps.action.outcome }}
         run: |
           echo "outcome: $OUTCOME"
-          if [ "$OUTCOME" = "success" ]; then
-            echo "PASS: action succeeded (config_file loaded successfully)"
-          elif [ "$OUTCOME" = "failure" ]; then
-            echo "PASS: action failed gracefully (config_file loaded but workflow_dispatch is not a supported event)"
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (workflow_dispatch is unsupported; config was loaded)"
+          elif [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded with config_file"
           else
             echo "FAIL: unexpected outcome '$OUTCOME'"
             exit 1
