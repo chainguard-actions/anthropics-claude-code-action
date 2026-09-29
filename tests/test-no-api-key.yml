@@ -1,0 +1,35 @@
+name: Test - No API Key (graceful failure)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Run action without API key
+        id: action
+        uses: .
+        continue-on-error: true
+        with:
+          prompt: "Say hello"
+          # No anthropic_api_key provided — action should fail gracefully
+
+      - name: Assert action failed gracefully (no API key)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: $CONCLUSION"
+          # Without an API key the action cannot call Claude and must fail.
+          # We accept either 'failure' (action set-failed) or 'success' with
+          # conclusion='failure' as both indicate graceful handling.
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully without API key"
+          elif [ "$OUTCOME" = "success" ] && [ "$CONCLUSION" = "failure" ]; then
+            echo "PASS: action reported conclusion=failure without API key"
+          else
+            echo "FAIL: unexpected outcome='$OUTCOME' conclusion='$CONCLUSION'"
+            exit 1
+          fi

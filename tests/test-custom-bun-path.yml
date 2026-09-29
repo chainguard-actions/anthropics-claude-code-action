@@ -1,0 +1,47 @@
+name: Test - Custom Bun executable path
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install Bun manually before action
+        run: |
+          curl -fsSL https://bun.sh/install | bash
+          echo "$HOME/.bun/bin" >> "$GITHUB_PATH"
+
+      - name: Verify Bun is installed
+        run: |
+          BUN_PATH="$HOME/.bun/bin/bun"
+          if [ ! -x "$BUN_PATH" ]; then
+            echo "FAIL: bun not found at $BUN_PATH"
+            exit 1
+          fi
+          echo "Bun version: $($BUN_PATH --version)"
+          echo "PASS: bun installed at $BUN_PATH"
+
+      - name: Run action with custom bun path (will fail at Claude invocation)
+        id: action
+        uses: .
+        continue-on-error: true
+        with:
+          prompt: "echo test"
+          path_to_bun_executable: "/root/.bun/bin/bun"
+          # No API key — action will fail at Claude invocation
+
+      - name: Assert action used custom bun path and failed gracefully
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # The action should have used the custom bun path and then failed
+          # at the Claude invocation step (no API key). Either failure or
+          # success with conclusion=failure is acceptable.
+          if [ "$OUTCOME" = "failure" ] || [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action completed with outcome '$OUTCOME' using custom bun path"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

@@ -23,7 +23,7 @@ jobs:
           GITHUB_TOKEN_VALUE: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p /tmp/mcp-config
-          cat > /tmp/mcp-config/mcp-servers.json << EOF
+          cat > /tmp/mcp-config/mcp-servers.json << 'EOF'
           {
             "mcpServers": {
               "github": {
@@ -37,17 +37,22 @@ jobs:
                   "ghcr.io/github/github-mcp-server:sha-23fa0dd"
                 ],
                 "env": {
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_TOKEN_VALUE"
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "PLACEHOLDER_REPLACED_AT_RUNTIME"
                 }
               }
             }
           }
           EOF
+          # Replace the placeholder with the actual token value safely using jq
+          jq --arg token "$GITHUB_TOKEN_VALUE" \
+            '.mcpServers.github.env.GITHUB_PERSONAL_ACCESS_TOKEN = $token' \
+            /tmp/mcp-config/mcp-servers.json > /tmp/mcp-config/mcp-servers.json.tmp
+          mv /tmp/mcp-config/mcp-servers.json.tmp /tmp/mcp-config/mcp-servers.json
 
       - name: Create triage prompt
         env:
-          GITHUB_REPOSITORY: ${{ github.repository }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           mkdir -p /tmp/claude-prompts
           cat > /tmp/claude-prompts/triage-prompt.txt << EOF

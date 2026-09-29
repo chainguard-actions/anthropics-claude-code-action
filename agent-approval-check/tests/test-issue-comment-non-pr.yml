@@ -1,4 +1,4 @@
-name: Test issue_comment on plain issue exits cleanly
+name: Test no agent identities configured fails gracefully
 on:
   workflow_dispatch:
 jobs:
@@ -12,29 +12,24 @@ jobs:
         continue-on-error: true
         with:
           github_token: ${{ github.token }}
-          required_approvals: "1"
-          agent_emails: "noreply@anthropic.com"
-          agent_logins: "claude[bot]"
-        env:
-          # The composite action sets GH_EVENT_NAME from github.event_name
-          # (workflow_dispatch), which is an unsupported event. Without
-          # GH_PR_NUMBER set, the script falls through to event parsing and
-          # raises ValueError — the action fails closed (non-zero exit).
-          # This verifies the fail-closed behavior when no PR context is available.
-          GH_PR_NUMBER: ""
+          required_approvals: "2"
+          # Explicitly pass empty agent identities to trigger the validation error.
+          # The script exits 1 with "No agent identities configured" before
+          # any event parsing or API calls.
+          agent_emails: ""
+          agent_logins: ""
 
-      - name: Assert action fails closed when no PR context is available
+      - name: Assert action fails when no agent identities are configured
         env:
           OUTCOME: ${{ steps.action.outcome }}
         run: |
           echo "outcome: $OUTCOME"
-          # Under act, GH_EVENT_NAME is always workflow_dispatch (unsupported).
-          # Without GH_PR_NUMBER, the script raises ValueError and exits non-zero.
-          # This is the expected fail-closed behavior.
+          # The script validates that at least one agent identity is configured
+          # and exits non-zero if both agent_emails and agent_logins are empty.
           if [ "$OUTCOME" = "failure" ]; then
-            echo "PASS: action failed closed (no PR context, unsupported event)"
+            echo "PASS: action correctly failed — no agent identities configured"
           elif [ "$OUTCOME" = "success" ]; then
-            echo "FAIL: action should have failed when no PR context is available"
+            echo "FAIL: action should have failed when no agent identities are configured"
             exit 1
           else
             echo "FAIL: unexpected outcome '$OUTCOME'"

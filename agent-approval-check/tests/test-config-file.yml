@@ -1,24 +1,30 @@
-name: Test config_file input overrides inline inputs
+name: Test custom config file loading
 on:
   workflow_dispatch:
 jobs:
   test:
     runs-on: ubuntu-latest
+    # GH_PR_NUMBER bypasses event parsing so the script proceeds to config
+    # loading and API calls (which fail on the sentinel repo).
+    env:
+      GH_PR_NUMBER: "99"
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      # Create a custom agent-identities YAML config file
-      - name: Create custom config file
+      - name: Create agent identities config file
         run: |
-          mkdir -p /tmp/fake-config
-          cat > /tmp/fake-config/agent-identities.yaml << 'EOF'
+          mkdir -p /tmp/test-config
+          cat > /tmp/test-config/agent-identities.yaml <<'EOF'
           agent_emails:
-            - bot@example.com
+            - custom-bot@example.com
             - noreply@anthropic.com
           agent_app_logins:
-            - my-custom-bot[bot]
+            - custom-bot[bot]
+            - claude[bot]
           excluded_approver_logins: []
           exempt_head_branches: []
+          exempt_path_prefixes: {}
+          protected_bases: {}
           EOF
 
       - id: action
@@ -26,27 +32,19 @@ jobs:
         continue-on-error: true
         with:
           github_token: ${{ github.token }}
-          required_approvals: "1"
-          # These inline inputs should be overridden by config_file
-          agent_emails: "should-be-ignored@example.com"
-          agent_logins: "should-be-ignored[bot]"
-          config_file: /tmp/fake-config/agent-identities.yaml
-        env:
-          # GH_PR_NUMBER bypasses event parsing (composite action does not override it).
-          # The action will proceed to make API calls that fail on the sentinel repo.
-          GH_PR_NUMBER: "7"
+          config_file: /tmp/test-config/agent-identities.yaml
 
-      - name: Assert action ran with config file (API call fails gracefully on sentinel repo)
+      - name: Assert action ran (config file loaded, API calls fail on sentinel repo)
         env:
           OUTCOME: ${{ steps.action.outcome }}
         run: |
           echo "outcome: $OUTCOME"
-          # The config file is valid and loaded correctly; the action then makes
-          # API calls that fail on the sentinel repo — both outcomes are acceptable
-          if [ "$OUTCOME" = "success" ]; then
-            echo "PASS: action succeeded (real repo resolved)"
-          elif [ "$OUTCOME" = "failure" ]; then
-            echo "PASS: action failed gracefully (sentinel repo is not resolvable)"
+          # The action should load the config file successfully, then fail
+          # when making API calls against the sentinel repo (which doesn't exist).
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (sentinel repo is not resolvable via API)"
+          elif [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded"
           else
             echo "FAIL: unexpected outcome '$OUTCOME'"
             exit 1

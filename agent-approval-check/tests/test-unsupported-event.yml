@@ -1,4 +1,4 @@
-name: Test unsupported event type exits with error
+name: Test unsupported event type fails gracefully
 on:
   workflow_dispatch:
 jobs:
@@ -13,26 +13,22 @@ jobs:
         with:
           github_token: ${{ github.token }}
           required_approvals: "2"
-          agent_emails: "noreply@anthropic.com"
-          agent_logins: "claude[bot]"
-        # No GH_PR_NUMBER set — the script falls through to event parsing.
-        # The composite action sets GH_EVENT_NAME=workflow_dispatch (from github.event_name),
-        # which is an unsupported event. The script raises ValueError and exits non-zero.
+          agent_emails: noreply@anthropic.com
+          agent_logins: claude[bot],claude-code[bot]
 
-      - name: Assert action fails on unsupported event
+      - name: Assert action fails for unsupported event type
         env:
           OUTCOME: ${{ steps.action.outcome }}
         run: |
           echo "outcome: $OUTCOME"
-          # workflow_dispatch is not a supported event — the script raises ValueError
-          # and exits non-zero (fail-closed behavior).
-          # Under act, GH_EVENT_NAME is always workflow_dispatch (set by the composite
-          # action from github.event_name), so this test naturally exercises the
-          # unsupported-event code path.
+          # The composite action sets GH_EVENT_NAME from github.event_name,
+          # which is "workflow_dispatch" under act. The Python script raises
+          # ValueError for unsupported events (workflow_dispatch is not supported)
+          # and exits non-zero.
           if [ "$OUTCOME" = "failure" ]; then
-            echo "PASS: action correctly failed on unsupported event type"
+            echo "PASS: action correctly failed for unsupported event type"
           elif [ "$OUTCOME" = "success" ]; then
-            echo "FAIL: action should have failed on unsupported event type"
+            echo "FAIL: action should have failed for unsupported event type"
             exit 1
           else
             echo "FAIL: unexpected outcome '$OUTCOME'"

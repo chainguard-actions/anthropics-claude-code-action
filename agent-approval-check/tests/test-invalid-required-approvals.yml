@@ -1,4 +1,4 @@
-name: Test invalid required_approvals value exits with error
+name: Test invalid required_approvals value fails
 on:
   workflow_dispatch:
 jobs:
@@ -12,22 +12,21 @@ jobs:
         continue-on-error: true
         with:
           github_token: ${{ github.token }}
-          # 0 is invalid — must be >= 1
           required_approvals: "0"
-          agent_emails: "noreply@anthropic.com"
-          agent_logins: "claude[bot]"
+          agent_emails: noreply@anthropic.com
+          agent_logins: claude[bot],claude-code[bot]
 
       - name: Assert action fails when required_approvals is 0
         env:
           OUTCOME: ${{ steps.action.outcome }}
         run: |
           echo "outcome: $OUTCOME"
-          # The script checks: if REQUIRED_APPROVALS < 1: sys.exit(1)
-          # This check happens in main() before any event parsing.
+          # The script validates REQUIRED_APPROVALS >= 1 before any API calls
+          # and exits non-zero if the value is 0.
           if [ "$OUTCOME" = "failure" ]; then
-            echo "PASS: action correctly failed when required_approvals=0"
+            echo "PASS: action correctly failed for required_approvals=0"
           elif [ "$OUTCOME" = "success" ]; then
-            echo "FAIL: action should have failed when required_approvals=0"
+            echo "FAIL: action should have failed for required_approvals=0"
             exit 1
           else
             echo "FAIL: unexpected outcome '$OUTCOME'"

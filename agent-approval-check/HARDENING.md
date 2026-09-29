@@ -16,11 +16,11 @@ Action **anthropics--claude-code-action--agent-approval-check/v1.0.219** was har
 
 ### script-injection (severity: high)
 
-Sub-rule (a): A ${{ }} expression is directly interpolated inside a `run:` shell command string. The step runs: `python "${{ github.action_path }}/agent_approval_check.py"`. Although `github.action_path` is GitHub-controlled rather than attacker-controlled, any `${{ ... }}` expression interpolated directly into a `run:` block is a script-injection risk — the value flows through YAML template substitution before the shell ever sees it, bypassing shell quoting. The fix is to route it through an `env:` variable and reference that variable in the script: set `ACTION_PATH: ${{ github.action_path }}` in the `env:` block and use `python "$ACTION_PATH/agent_approval_check.py"` in the `run:` block.
+Sub-rule (a): A `${{ }}` expression is directly interpolated inside a `run:` shell command string. The line `run: python "${{ github.action_path }}/agent_approval_check.py"` embeds `${{ github.action_path }}` directly in the shell command. Per the check rules, ANY `${{ ... }}` expression inside a `run:` block is a script-injection finding — the value is substituted by the Actions template engine before the shell ever sees it, bypassing shell quoting. The safe alternative is to use the `$GITHUB_ACTION_PATH` environment variable (which is automatically set by the runner) instead: `run: python "$GITHUB_ACTION_PATH/agent_approval_check.py"`.
 
 Locations:
 
-- `action.yml:57`
+- `action.yml:58`
 
 ## Iteration Notes
 
@@ -30,5 +30,5 @@ Locations:
 
 **Notes:**
 
-Fixed script-injection in hardened/action/action.yml line 57: moved `${{ github.action_path }}` from the `run:` shell command string into the step's `env:` block as `ACTION_PATH: ${{ github.action_path }}`, and updated the run command to use `python "$ACTION_PATH/agent_approval_check.py"` instead.
+Replaced `${{ github.action_path }}` in the `run:` command with `$GITHUB_ACTION_PATH` (the equivalent runner-provided environment variable). This eliminates the template-engine substitution that caused the script-injection finding, while preserving identical runtime behavior since GitHub Actions automatically sets GITHUB_ACTION_PATH to the same value.
 

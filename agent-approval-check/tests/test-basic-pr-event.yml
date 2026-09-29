@@ -4,6 +4,11 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    # GH_PR_NUMBER bypasses event parsing in the Python script so it
+    # proceeds past resolve_pr_number() and attempts API calls.
+    # The sentinel repo makes those calls fail, which is the expected outcome.
+    env:
+      GH_PR_NUMBER: "42"
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
@@ -13,22 +18,20 @@ jobs:
         with:
           github_token: ${{ github.token }}
           required_approvals: "2"
-          agent_emails: "noreply@anthropic.com"
-          agent_logins: "claude[bot],claude-code[bot]"
-        env:
-          # GH_PR_NUMBER bypasses event parsing (composite action does not override it).
-          # The action will proceed to make API calls that fail on the sentinel repo.
-          GH_PR_NUMBER: "42"
+          agent_emails: noreply@anthropic.com
+          agent_logins: claude[bot],claude-code[bot]
 
-      - name: Assert action ran (API call fails gracefully on sentinel repo)
+      - name: Assert action ran and failed gracefully on sentinel repo
         env:
           OUTCOME: ${{ steps.action.outcome }}
         run: |
           echo "outcome: $OUTCOME"
-          if [ "$OUTCOME" = "success" ]; then
-            echo "PASS: action succeeded (real repo resolved)"
-          elif [ "$OUTCOME" = "failure" ]; then
+          # The action loads config, validates inputs, then tries GitHub API
+          # calls against the sentinel repo (which doesn't exist) and fails.
+          if [ "$OUTCOME" = "failure" ]; then
             echo "PASS: action failed gracefully (sentinel repo is not resolvable)"
+          elif [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded (unexpected but acceptable)"
           else
             echo "FAIL: unexpected outcome '$OUTCOME'"
             exit 1
