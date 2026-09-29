@@ -1,15 +1,14 @@
-name: Test pull_request_review event handling
+name: Test GH_PR_NUMBER env var bypasses event parsing
 on:
   workflow_dispatch:
-
 jobs:
   test:
     runs-on: ubuntu-latest
-    # GH_PR_NUMBER bypasses event parsing (action hardcodes GH_EVENT_NAME=workflow_dispatch
-    # which is unsupported). The script will attempt to process PR #99 via the GitHub API,
-    # which will fail on the sentinel repo — that is the expected graceful failure.
     env:
-      GH_PR_NUMBER: "99"
+      # GH_PR_NUMBER bypasses event parsing entirely. The script will skip
+      # reading GH_EVENT_NAME/GH_EVENT_PATH and go straight to processing
+      # PR #42 via the GitHub API.
+      GH_PR_NUMBER: "42"
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
@@ -22,15 +21,18 @@ jobs:
           agent_emails: "noreply@anthropic.com"
           agent_logins: "claude[bot],claude-code[bot]"
 
-      - name: Assert action ran (API calls fail on sentinel repo, or succeeded)
+      - name: Assert action ran (PR number set via GH_PR_NUMBER, API call attempted)
         env:
           OUTCOME: ${{ steps.action.outcome }}
         run: |
           echo "outcome: $OUTCOME"
+          # The action skipped event parsing (GH_PR_NUMBER=42 was set) and
+          # attempted to process PR #42 via the GitHub API.
+          # On the sentinel repo the GraphQL call will fail (404), which is expected.
           if [ "$OUTCOME" = "success" ]; then
-            echo "PASS: action succeeded"
+            echo "PASS: action succeeded (real repo accessible)"
           elif [ "$OUTCOME" = "failure" ]; then
-            echo "PASS: action failed gracefully (sentinel repo is not resolvable)"
+            echo "PASS: action failed gracefully (sentinel repo not resolvable via API)"
           else
             echo "FAIL: unexpected outcome '$OUTCOME'"
             exit 1

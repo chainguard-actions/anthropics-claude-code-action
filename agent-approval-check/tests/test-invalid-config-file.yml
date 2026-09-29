@@ -1,24 +1,21 @@
 name: Test invalid config_file causes failure
 on:
   workflow_dispatch:
-
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Create invalid config file
+      - name: Create an invalid config file (YAML list instead of dict)
         run: |
-          mkdir -p /tmp/gh-config
-
-          # Write an invalid YAML config (agent_emails is a string, not a list)
-          cat > /tmp/gh-config/bad-config.yaml <<'EOF'
-          agent_emails: "this-should-be-a-list-not-a-string"
-          agent_app_logins:
-            - claude[bot]
-          excluded_approver_logins: []
-          exempt_head_branches: []
+          mkdir -p /tmp/fake-config
+          # Write a YAML file that is a list, not a dict — should fail validation
+          cat > /tmp/fake-config/bad-config.yaml <<'EOF'
+          - this
+          - is
+          - a
+          - list
           EOF
 
       - id: action
@@ -26,16 +23,19 @@ jobs:
         continue-on-error: true
         with:
           github_token: ${{ github.token }}
-          config_file: /tmp/gh-config/bad-config.yaml
+          config_file: /tmp/fake-config/bad-config.yaml
 
-      - name: Assert action failed due to invalid config file
+      - name: Assert action failed due to invalid config file format
         env:
           OUTCOME: ${{ steps.action.outcome }}
         run: |
           echo "outcome: $OUTCOME"
+          # The config file is a YAML list instead of a dict. The script
+          # validates the config format and raises ValueError, causing exit 1.
+          # This happens before any event parsing or API calls.
           if [ "$OUTCOME" = "failure" ]; then
-            echo "PASS: action correctly failed with invalid config file"
+            echo "PASS: action correctly failed with invalid config file (list instead of dict)"
           else
-            echo "FAIL: expected failure for invalid config file but got '$OUTCOME'"
+            echo "FAIL: expected failure but got '$OUTCOME'"
             exit 1
           fi

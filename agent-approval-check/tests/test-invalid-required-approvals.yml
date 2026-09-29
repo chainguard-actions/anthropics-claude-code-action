@@ -1,7 +1,6 @@
-name: Test invalid required_approvals fails
+name: Test invalid required_approvals (< 1) causes failure
 on:
   workflow_dispatch:
-
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -22,9 +21,11 @@ jobs:
           OUTCOME: ${{ steps.action.outcome }}
         run: |
           echo "outcome: $OUTCOME"
+          # The script validates REQUIRED_APPROVALS >= 1 before any event
+          # parsing or API calls. required_approvals=0 causes sys.exit(1).
           if [ "$OUTCOME" = "failure" ]; then
-            echo "PASS: action correctly failed with required_approvals=0"
+            echo "PASS: action correctly failed when required_approvals=0"
           else
-            echo "FAIL: expected failure for required_approvals=0 but got '$OUTCOME'"
+            echo "FAIL: expected failure but got '$OUTCOME'"
             exit 1
           fi

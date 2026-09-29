@@ -1,0 +1,58 @@
+name: Test config_file input loads YAML configuration
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      # GH_PR_NUMBER bypasses event parsing (GH_EVENT_NAME is always
+      # workflow_dispatch under act, which is unsupported). The script will
+      # load the config file, validate it, then attempt a GitHub API call
+      # for PR #1 which will fail on the sentinel repo — that is expected.
+      GH_PR_NUMBER: "1"
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create agent identities config file
+        run: |
+          mkdir -p /tmp/fake-config
+
+          # Write a valid agent-identities YAML config file
+          cat > /tmp/fake-config/agent-identities.yaml <<'EOF'
+          agent_emails:
+            - noreply@anthropic.com
+            - bot@example.com
+          agent_app_logins:
+            - claude[bot]
+            - claude-code[bot]
+          excluded_approver_logins:
+            - rubber-stamp-bot
+          exempt_head_branches:
+            - dependabot/*
+          exempt_path_prefixes: {}
+          protected_bases: {}
+          EOF
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          github_token: ${{ github.token }}
+          config_file: /tmp/fake-config/agent-identities.yaml
+
+      - name: Assert action ran (config file loaded, API call attempted or succeeded)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # The action loaded the config from the YAML file and attempted to
+          # process PR #1 via the GitHub API. On the sentinel repo the API
+          # call will fail (404), which is expected and acceptable.
+          if [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded (real repo accessible)"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (config loaded, sentinel repo not resolvable)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

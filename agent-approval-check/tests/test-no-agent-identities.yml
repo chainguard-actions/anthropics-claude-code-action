@@ -1,7 +1,6 @@
-name: Test empty agent identities fails
+name: Test empty agent identities causes failure
 on:
   workflow_dispatch:
-
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -13,7 +12,7 @@ jobs:
         continue-on-error: true
         with:
           github_token: ${{ github.token }}
-          required_approvals: "1"
+          required_approvals: "2"
           agent_emails: ""
           agent_logins: ""
 
@@ -22,9 +21,12 @@ jobs:
           OUTCOME: ${{ steps.action.outcome }}
         run: |
           echo "outcome: $OUTCOME"
+          # The script validates that at least one agent identity is configured
+          # before any event parsing or API calls. Empty agent_emails and
+          # agent_logins cause sys.exit(1).
           if [ "$OUTCOME" = "failure" ]; then
-            echo "PASS: action correctly failed when no agent identities are configured"
+            echo "PASS: action correctly failed when no agent identities configured"
           else
-            echo "FAIL: expected failure for empty agent identities but got '$OUTCOME'"
+            echo "FAIL: expected failure but got '$OUTCOME'"
             exit 1
           fi

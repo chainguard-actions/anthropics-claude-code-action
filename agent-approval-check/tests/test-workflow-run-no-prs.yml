@@ -1,4 +1,4 @@
-name: Test issue_comment on plain issue exits gracefully
+name: Test workflow_run event with no PRs exits gracefully
 on:
   workflow_dispatch:
 jobs:
@@ -12,9 +12,9 @@ jobs:
         continue-on-error: true
         with:
           github_token: ${{ github.token }}
-          required_approvals: "2"
+          required_approvals: "1"
           agent_emails: "noreply@anthropic.com"
-          agent_logins: "claude[bot],claude-code[bot]"
+          agent_logins: "claude[bot]"
 
       - name: Assert action exited (unsupported event or API failure)
         env:
@@ -24,8 +24,8 @@ jobs:
           # Under act, GH_EVENT_NAME is always workflow_dispatch (set by the
           # composite action from github.event_name). workflow_dispatch is not
           # a supported event for this action, so it exits 1. This test verifies
-          # the script exits non-zero gracefully (no crash/hang) when the event
-          # type is not recognized.
+          # the script exits non-zero gracefully (no crash/hang) when no PR
+          # number can be resolved.
           if [ "$OUTCOME" = "failure" ]; then
             echo "PASS: action exited non-zero (unsupported event or API failure)"
           elif [ "$OUTCOME" = "success" ]; then

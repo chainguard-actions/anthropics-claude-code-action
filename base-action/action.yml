@@ -157,7 +157,7 @@ runs:
         if [ -z "$PATH_TO_CLAUDE_CODE_EXECUTABLE" ]; then
           CLAUDE_CODE_VERSION="2.1.257"
           echo "Installing Claude Code v${CLAUDE_CODE_VERSION}..."
-          INSTALL_SCRIPT=$(mktemp)
+          INSTALL_SCRIPT="$(mktemp)"
           for attempt in 1 2 3; do
             echo "Installation attempt $attempt..."
             if command -v timeout &> /dev/null; then
