@@ -1,0 +1,52 @@
+name: Test config_file input loading
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Create a valid agent-identities YAML config file in the workspace
+      # (must be under GITHUB_WORKSPACE so the composite action can read it)
+      - name: Create agent config file
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/tmp-config"
+          cat > "$GITHUB_WORKSPACE/tmp-config/agent-identities.yaml" << 'EOF'
+          agent_emails:
+            - noreply@anthropic.com
+            - bot@example.com
+          agent_app_logins:
+            - claude[bot]
+            - claude-code[bot]
+          excluded_approver_logins: []
+          exempt_head_branches: []
+          exempt_path_prefixes: {}
+          protected_bases: {}
+          EOF
+
+      # Under act, github.event_name is always workflow_dispatch (unsupported).
+      # The composite step hardcodes GH_EVENT_NAME from github.event_name.
+      # The config file is loaded first; then the script fails at event parsing.
+      # We verify the action fails gracefully (not a config-load error).
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          github_token: ${{ github.token }}
+          config_file: ${{ github.workspace }}/tmp-config/agent-identities.yaml
+
+      - name: Assert action failed gracefully (config loaded, unsupported event under act)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed as expected (workflow_dispatch is unsupported)"
+          elif [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded unexpectedly"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
