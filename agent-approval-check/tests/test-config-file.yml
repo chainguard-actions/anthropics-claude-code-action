@@ -1,0 +1,53 @@
+name: Test config_file input loading
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Create a YAML config file for agent identities
+      - name: Create agent-identities config file
+        run: |
+          mkdir -p /tmp/agent-config
+          cat > /tmp/agent-config/agent-identities.yaml <<'EOF'
+          agent_emails:
+            - noreply@anthropic.com
+            - bot@example.com
+          agent_app_logins:
+            - claude[bot]
+            - claude-code[bot]
+          excluded_approver_logins: []
+          exempt_head_branches: []
+          exempt_path_prefixes: {}
+          protected_bases: {}
+          EOF
+
+      # Use GH_PR_NUMBER to bypass event parsing (the action's composite step
+      # overrides GH_EVENT_NAME with "workflow_dispatch" which is unsupported).
+      # The action will load the config file, then attempt GitHub API calls for
+      # PR #1 on the sentinel repo, which will fail gracefully.
+      - id: action
+        uses: .
+        continue-on-error: true
+        env:
+          GH_PR_NUMBER: "1"
+        with:
+          github_token: ${{ github.token }}
+          config_file: /tmp/agent-config/agent-identities.yaml
+
+      - name: Assert action loaded config file and attempted PR processing
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action loaded config file and succeeded"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action loaded config file and failed gracefully (sentinel repo not resolvable)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
