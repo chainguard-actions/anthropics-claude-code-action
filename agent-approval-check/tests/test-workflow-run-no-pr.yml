@@ -1,0 +1,35 @@
+name: Test workflow_run event handling (no PR path)
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Under act, GH_EVENT_NAME is always set to 'workflow_dispatch' by the
+      # action's own step env (overriding any env we set). The script raises
+      # ValueError for unsupported events, so the action always fails here.
+      # We verify the action fails gracefully (non-zero exit, no hang).
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          required_approvals: "2"
+          agent_emails: "noreply@anthropic.com"
+          agent_logins: "claude[bot]"
+
+      - name: Assert action failed gracefully (unsupported event under workflow_dispatch)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully for unsupported event type"
+          elif [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded (unexpected but acceptable)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

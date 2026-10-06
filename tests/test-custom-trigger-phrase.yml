@@ -1,0 +1,36 @@
+name: Test custom trigger phrase input
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          trigger_phrase: "@mybot"
+          prompt: "List files in the current directory"
+          branch_prefix: "mybot/"
+          use_sticky_comment: "false"
+          # No API key — action will fail at the API call stage
+
+      - name: Assert action ran (not skipped)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "skipped" ]; then
+            echo "FAIL: action was skipped — it should have at least started"
+            exit 1
+          fi
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (no credentials, as expected)"
+          elif [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
