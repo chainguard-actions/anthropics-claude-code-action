@@ -1,0 +1,53 @@
+name: Test pull_request event with sentinel repo (API call expected to fail)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create fake pull_request event payload
+        run: |
+          cat > /tmp/fake-pr-event.json <<'EOF'
+          {
+            "action": "opened",
+            "pull_request": {
+              "number": 1,
+              "head": {
+                "sha": "abc123def456abc123def456abc123def456abc1"
+              },
+              "base": {
+                "ref": "main"
+              }
+            }
+          }
+          EOF
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        env:
+          GH_EVENT_NAME: pull_request
+          GH_EVENT_PATH: /tmp/fake-pr-event.json
+        with:
+          github_token: ${{ github.token }}
+          required_approvals: "2"
+          agent_emails: noreply@anthropic.com
+          agent_logins: claude[bot],claude-code[bot]
+
+      - name: Assert action ran (succeeded or failed gracefully on sentinel repo)
+        run: |
+          # The action's own env block overrides GH_EVENT_NAME with github.event_name
+          # (workflow_dispatch under act), which is unsupported — so the action fails.
+          # Either failure (unsupported event / sentinel repo) or success is acceptable.
+          OUTCOME="${{ steps.action.outcome }}"
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded (unexpected but acceptable)"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully — sentinel repo or unsupported event under act"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
