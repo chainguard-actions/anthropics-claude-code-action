@@ -1,0 +1,41 @@
+name: Test config_file input — empty identities causes validation failure
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create config file with no agent identities
+        run: |
+          mkdir -p /tmp/fake-config
+          cat > /tmp/fake-config/agent-identities.yaml <<'EOF'
+          agent_emails: []
+          agent_app_logins: []
+          excluded_approver_logins: []
+          exempt_head_branches: []
+          exempt_path_prefixes: {}
+          protected_bases: {}
+          EOF
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          config_file: /tmp/fake-config/agent-identities.yaml
+
+      - name: Assert action failed due to no agent identities in config_file
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action correctly rejected config_file with no agent identities"
+          elif [ "$OUTCOME" = "success" ]; then
+            echo "FAIL: action should have failed when config_file has no agent identities"
+            exit 1
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
