@@ -1,0 +1,3 @@
+agent_emails: "this-should-be-a-list-not-a-string"
+agent_app_logins:
+  - claude[bot]
