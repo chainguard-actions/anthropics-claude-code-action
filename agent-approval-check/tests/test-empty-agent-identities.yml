@@ -1,0 +1,37 @@
+name: Test empty agent identities causes failure
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # The Python script validates agent identities before resolving the PR
+      # number. When both agent_emails and agent_logins are empty, it logs
+      # "No agent identities configured" and exits 1 — regardless of event type.
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          github_token: ${{ github.token }}
+          required_approvals: "2"
+          agent_emails: ""
+          agent_logins: ""
+
+      - name: Assert action failed due to empty agent identities
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: '$OUTCOME'"
+          # The script exits 1 with "No agent identities configured" before
+          # any API calls or event resolution. Expect failure.
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action correctly rejected empty agent identities"
+          elif [ "$OUTCOME" = "success" ]; then
+            echo "FAIL: expected failure for empty agent_emails and agent_logins, got success"
+            exit 1
+          else
+            # Unknown outcome — treat as acceptable (act quirk)
+            echo "INFO: outcome='$OUTCOME' — treating as acceptable (act environment)"
+          fi
