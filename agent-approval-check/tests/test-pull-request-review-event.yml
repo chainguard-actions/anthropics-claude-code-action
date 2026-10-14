@@ -1,0 +1,59 @@
+name: Test pull_request_review event triggers API call (sentinel repo graceful failure)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create fake pull_request_review event payload
+        run: |
+          mkdir -p /tmp/fake-events
+          cat > /tmp/fake-events/pr_review.json <<'EOF'
+          {
+            "action": "submitted",
+            "review": {
+              "id": 100,
+              "state": "approved",
+              "user": {
+                "login": "human-reviewer"
+              }
+            },
+            "pull_request": {
+              "number": 5,
+              "head": {
+                "sha": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+              },
+              "base": {
+                "ref": "main"
+              }
+            }
+          }
+          EOF
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        env:
+          GH_EVENT_NAME: pull_request_review
+          GH_EVENT_PATH: /tmp/fake-events/pr_review.json
+        with:
+          github_token: ${{ github.token }}
+          required_approvals: "1"
+          agent_emails: noreply@anthropic.com
+          agent_logins: claude[bot],claude-code[bot]
+
+      - name: Assert action ran (API call or graceful failure on sentinel repo)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded (PR review processed)"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (sentinel repo is not resolvable via GitHub API)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

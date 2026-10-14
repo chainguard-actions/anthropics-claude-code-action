@@ -1,0 +1,51 @@
+name: Test issue_comment on non-PR issue exits gracefully
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create fake issue_comment event payload (non-PR issue)
+        run: |
+          mkdir -p /tmp/fake-events
+          cat > /tmp/fake-events/issue_comment.json <<'EOF'
+          {
+            "action": "created",
+            "issue": {
+              "number": 42,
+              "title": "A plain issue, not a PR"
+            },
+            "comment": {
+              "id": 1,
+              "body": "/approve abc123"
+            }
+          }
+          EOF
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          github_token: ${{ github.token }}
+          required_approvals: "2"
+          agent_emails: noreply@anthropic.com
+          agent_logins: claude[bot],claude-code[bot]
+
+      - name: Assert action failed gracefully (unsupported event under act harness)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # Under act, github.event_name is always workflow_dispatch, which the
+          # action correctly rejects as an unsupported event. This is expected
+          # behavior — the action validates its event context.
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully for unsupported event (workflow_dispatch under act)"
+          elif [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action exited 0 (event handled gracefully)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

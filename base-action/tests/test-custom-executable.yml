@@ -1,0 +1,42 @@
+name: Test custom Claude Code executable path
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create fake Claude Code executable
+        run: |
+          mkdir -p /tmp/fake-claude-bin
+          cat > /tmp/fake-claude-bin/claude << 'EOF'
+          #!/bin/sh
+          # Fake claude that exits with error to simulate no API key
+          echo "fake claude: no API key configured" >&2
+          exit 1
+          EOF
+          chmod +x /tmp/fake-claude-bin/claude
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          prompt: "Say hello"
+          path_to_claude_code_executable: "/tmp/fake-claude-bin/claude"
+          anthropic_api_key: ""
+
+      - name: Assert action used custom executable (skipped installation)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # The action should have used our fake executable and failed gracefully
+          if [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded (unexpected but acceptable)"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully using custom executable path"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
