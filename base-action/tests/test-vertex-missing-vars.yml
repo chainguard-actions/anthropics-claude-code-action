@@ -1,0 +1,33 @@
+name: Test Vertex AI missing required vars fails gracefully
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          prompt: "Say hello"
+          use_vertex: "true"
+          # ANTHROPIC_VERTEX_PROJECT_ID and CLOUD_ML_REGION not set — should fail validation
+
+      - name: Assert action failed gracefully (Vertex missing required vars)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: $CONCLUSION"
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed as expected with Vertex but missing required vars"
+          elif [ "$OUTCOME" = "success" ]; then
+            echo "FAIL: action unexpectedly succeeded without required Vertex vars"
+            exit 1
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
