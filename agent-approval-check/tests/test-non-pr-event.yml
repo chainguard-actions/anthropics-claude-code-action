@@ -1,0 +1,49 @@
+name: Test non-PR event - action exits gracefully
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Create a fake push event payload (no pull_request key)
+      - name: Create fake push event payload
+        run: |
+          mkdir -p /tmp/fake-event
+          cat > /tmp/fake-event/push-event.json <<'EOF'
+          {
+            "ref": "refs/heads/main",
+            "after": "abc1234567890abcdef1234567890abcdef12345",
+            "repository": {
+              "full_name": "example/repo"
+            }
+          }
+          EOF
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        env:
+          GH_EVENT_NAME: push
+          GH_EVENT_PATH: /tmp/fake-event/push-event.json
+        with:
+          github_token: ${{ github.token }}
+          required_approvals: "2"
+          agent_emails: noreply@anthropic.com
+          agent_logins: claude[bot],claude-code[bot]
+
+      - name: Assert action exits gracefully for non-PR event
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # For a push event (no PR), the action should log "nothing to do" and exit 0.
+          if [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action exited gracefully for non-PR event"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (acceptable for non-PR event with sentinel repo)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

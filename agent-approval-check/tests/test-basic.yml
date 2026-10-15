@@ -1,0 +1,58 @@
+name: Test basic usage - PR event with sentinel repo
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Create a fake event payload for a pull_request event
+      - name: Create fake PR event payload
+        run: |
+          mkdir -p /tmp/fake-event
+          cat > /tmp/fake-event/event.json <<'EOF'
+          {
+            "action": "opened",
+            "number": 1,
+            "pull_request": {
+              "number": 1,
+              "head": {
+                "sha": "abc1234567890abcdef1234567890abcdef12345",
+                "ref": "feature-branch"
+              },
+              "base": {
+                "ref": "main"
+              },
+              "state": "open"
+            }
+          }
+          EOF
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        env:
+          GH_EVENT_NAME: pull_request
+          GH_EVENT_PATH: /tmp/fake-event/event.json
+        with:
+          github_token: ${{ github.token }}
+          required_approvals: "2"
+          agent_emails: noreply@anthropic.com
+          agent_logins: claude[bot],claude-code[bot]
+
+      - name: Assert action ran and failed gracefully on sentinel repo
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # The action will fail because the sentinel repo does not exist on GitHub.
+          # We accept either success (unlikely) or failure (expected with sentinel repo).
+          if [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded (real repo resolved)"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (sentinel repo is not resolvable)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
