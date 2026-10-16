@@ -1,0 +1,42 @@
+name: Test invalid required_approvals (0) fails with validation error
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Create a fake PR event payload
+        run: |
+          mkdir -p /tmp/fake-event
+          cat > /tmp/fake-event/event.json <<'EOF'
+          {
+            "action": "opened",
+            "pull_request": {
+              "number": 1,
+              "head": { "sha": "abc1234" },
+              "base": { "ref": "main" }
+            }
+          }
+          EOF
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          required_approvals: "0"
+          agent_emails: "noreply@anthropic.com"
+          agent_logins: "claude[bot]"
+        env:
+          GH_EVENT_NAME: pull_request
+          GH_EVENT_PATH: /tmp/fake-event/event.json
+      - name: Assert action failed due to invalid required_approvals
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action correctly failed for required_approvals=0"
+          else
+            echo "FAIL: expected failure for required_approvals=0, got '$OUTCOME'"
+            exit 1
+          fi

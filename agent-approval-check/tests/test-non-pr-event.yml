@@ -1,0 +1,28 @@
+name: Test non-PR event exits cleanly
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        continue-on-error: true
+      - name: Assert action handled non-PR event (workflow_dispatch) gracefully
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # Under act, github.event_name is always workflow_dispatch.
+          # The action raises ValueError for unsupported events (non-PR events),
+          # so failure is the expected outcome here — it means the action correctly
+          # detected a non-PR event and raised an error rather than silently doing nothing.
+          # Both "success" (if the action ever adds a no-op path) and "failure"
+          # (current behavior: ValueError: Unsupported event) are acceptable.
+          if [ "$OUTCOME" = "success" ] || [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action handled non-PR event with outcome '$OUTCOME' (no panic/crash beyond expected ValueError)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

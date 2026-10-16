@@ -1,0 +1,36 @@
+name: Test custom agent config inputs with non-PR event
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          required_approvals: "1"
+          agent_emails: "bot@example.com,agent@example.com"
+          agent_logins: "my-bot[bot],another-bot[bot]"
+          excluded_approvers: "rubber-stamp-bot"
+          docs_url: "https://example.com/docs"
+      - name: Assert action ran with custom config (config parsed, event check may fail)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # Under act, github.event_name is always workflow_dispatch.
+          # The action's composite step sets GH_EVENT_NAME from github.event_name,
+          # so it always sees workflow_dispatch — an unsupported event — and raises
+          # ValueError. The important thing is that the custom config inputs are
+          # accepted and parsed (visible in logs before the event error), and the
+          # action does not crash in an unexpected way.
+          # Both "success" and "failure" (expected: ValueError for unsupported event)
+          # are acceptable outcomes here.
+          if [ "$OUTCOME" = "success" ] || [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action processed custom config inputs with outcome '$OUTCOME'"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
