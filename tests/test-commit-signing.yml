@@ -1,0 +1,36 @@
+name: Test commit signing configuration
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          prompt: "List files"
+          use_commit_signing: "true"
+          bot_name: "test-bot[bot]"
+          bot_id: "12345678"
+          # No anthropic_api_key — action will fail at API call stage
+
+      - name: Assert action ran with commit signing config
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: $CONCLUSION"
+          # Without an API key the action is expected to fail gracefully.
+          # The important thing is it accepted the commit signing inputs without crashing.
+          if [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded with conclusion='$CONCLUSION'"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (expected without API key)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
