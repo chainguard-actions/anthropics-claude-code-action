@@ -1,0 +1,39 @@
+name: Test auth inputs with no prompt skip gracefully
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          github_token: ${{ github.token }}
+          anthropic_api_key: dummy-api-key-not-used
+          claude_code_oauth_token: dummy-oauth-token-not-used
+          classify_inline_comments: "false"
+      - name: Assert action skipped Claude run but succeeded
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+          EXEC_FILE: ${{ steps.action.outputs.execution_file }}
+          TOKEN_OUT: ${{ steps.action.outputs.github_token }}
+          EXPECTED: ${{ github.token }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: '$CONCLUSION'"
+          echo "execution_file: '$EXEC_FILE'"
+          if [ "$OUTCOME" != "success" ]; then
+            echo "FAIL: expected success outcome"
+            exit 1
+          fi
+          if [ -n "$CONCLUSION" ] || [ -n "$EXEC_FILE" ]; then
+            echo "FAIL: Claude should not have run without a prompt"
+            exit 1
+          fi
+          if [ "$TOKEN_OUT" != "$EXPECTED" ]; then
+            echo "FAIL: github_token output does not match provided token"
+            exit 1
+          fi
+          echo "PASS"

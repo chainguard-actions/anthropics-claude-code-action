@@ -1,0 +1,39 @@
+name: Test multiple providers enabled fails
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: us-east-1
+      AWS_BEARER_TOKEN_BEDROCK: dummy-bearer-not-used
+      ANTHROPIC_VERTEX_PROJECT_ID: dummy-project
+      CLOUD_ML_REGION: us-east5
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Prepare fake Claude CLI
+        run: chmod +x "$GITHUB_WORKSPACE/tests/fixtures/fake-claude/claude"
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          prompt: "This should never run"
+          use_bedrock: "true"
+          use_vertex: "true"
+          path_to_claude_code_executable: ${{ github.workspace }}/tests/fixtures/fake-claude/claude
+      - name: Assert action failed validation
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: $CONCLUSION"
+          if [ "$OUTCOME" != "failure" ]; then
+            echo "FAIL: expected failure when both Bedrock and Vertex are enabled"
+            exit 1
+          fi
+          if [ -n "$CONCLUSION" ] && [ "$CONCLUSION" != "failure" ]; then
+            echo "FAIL: expected conclusion 'failure'"
+            exit 1
+          fi
+          echo "PASS"

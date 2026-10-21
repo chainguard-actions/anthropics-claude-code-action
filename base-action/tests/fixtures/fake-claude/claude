@@ -1,0 +1,141 @@
+#!/usr/bin/env node
+// Fake Claude Code CLI used by the act tests. It speaks just enough of the
+// Agent SDK stream-json protocol to let the action complete without calling
+// the real Anthropic API. Everything it receives is logged to
+// /tmp/fake-claude.log so tests can assert on what the action sent.
+const fs = require("fs");
+
+const LOG = "/tmp/fake-claude.log";
+const SESSION = "fake-session-0001";
+const args = process.argv.slice(2);
+
+function log(line) {
+  try {
+    fs.appendFileSync(LOG, line + "\n");
+  } catch (e) {
+    // ignore
+  }
+}
+
+log("ARGS: " + JSON.stringify(args));
+
+if (args.includes("--version") || args.includes("-v")) {
+  process.stdout.write("2.1.306 (Claude Code)\n");
+  process.exit(0);
+}
+if (args[0] === "plugin" || args[0] === "plugins") {
+  process.exit(0);
+}
+
+function out(obj) {
+  process.stdout.write(JSON.stringify(obj) + "\n");
+}
+
+let done = false;
+function finish() {
+  if (done) return;
+  done = true;
+  out({
+    type: "system",
+    subtype: "init",
+    session_id: SESSION,
+    model: "fake-model",
+    cwd: process.cwd(),
+    tools: [],
+    mcp_servers: [],
+    permissionMode: "default",
+    apiKeySource: "none",
+    slash_commands: [],
+    output_style: "default",
+    uuid: "00000000-0000-0000-0000-000000000001",
+  });
+  out({
+    type: "assistant",
+    session_id: SESSION,
+    parent_tool_use_id: null,
+    uuid: "00000000-0000-0000-0000-000000000002",
+    message: {
+      id: "msg_fake",
+      type: "message",
+      role: "assistant",
+      model: "fake-model",
+      content: [{ type: "text", text: "fake response" }],
+      stop_reason: "end_turn",
+      stop_sequence: null,
+      usage: { input_tokens: 0, output_tokens: 0 },
+    },
+  });
+  out({
+    type: "result",
+    subtype: "success",
+    is_error: false,
+    duration_ms: 1,
+    duration_api_ms: 1,
+    num_turns: 1,
+    result: "fake response",
+    session_id: SESSION,
+    total_cost_usd: 0,
+    usage: { input_tokens: 0, output_tokens: 0 },
+    modelUsage: {},
+    permission_denials: [],
+    uuid: "00000000-0000-0000-0000-000000000003",
+  });
+  setTimeout(() => process.exit(0), 300);
+}
+
+// Legacy mode: prompt passed as an argument with --print and no stream input.
+const streamInput = args.some(
+  (a, i) => a === "--input-format" && args[i + 1] === "stream-json",
+);
+if (!streamInput && (args.includes("-p") || args.includes("--print"))) {
+  const last = args[args.length - 1];
+  if (last && !last.startsWith("-")) {
+    log("PROMPT: " + last);
+    finish();
+  }
+}
+
+let buf = "";
+process.stdin.setEncoding("utf8");
+process.stdin.on("data", (chunk) => {
+  buf += chunk;
+  let idx;
+  while ((idx = buf.indexOf("\n")) >= 0) {
+    const line = buf.slice(0, idx).trim();
+    buf = buf.slice(idx + 1);
+    if (!line) continue;
+    log("STDIN: " + line);
+    let msg;
+    try {
+      msg = JSON.parse(line);
+    } catch (e) {
+      continue;
+    }
+    if (msg.type === "control_request") {
+      const sub = msg.request && msg.request.subtype;
+      let response = {};
+      if (sub === "initialize") {
+        response = {
+          commands: [],
+          output_style: "default",
+          available_output_styles: ["default"],
+          models: [],
+          account: {},
+        };
+      }
+      out({
+        type: "control_response",
+        response: {
+          subtype: "success",
+          request_id: msg.request_id,
+          response,
+        },
+      });
+    } else if (msg.type === "user") {
+      finish();
+    }
+  }
+});
+process.stdin.on("end", () => {
+  finish();
+});

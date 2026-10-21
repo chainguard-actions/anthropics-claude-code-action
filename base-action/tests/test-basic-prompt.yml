@@ -1,0 +1,50 @@
+name: Test basic inline prompt
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Prepare fake Claude CLI
+        run: |
+          chmod +x "$GITHUB_WORKSPACE/tests/fixtures/fake-claude/claude"
+          rm -f /tmp/fake-claude.log
+      - id: action
+        uses: .
+        with:
+          prompt: "Say hello from the basic inline prompt test"
+          anthropic_api_key: "sk-ant-dummy-not-used"
+          path_to_claude_code_executable: ${{ github.workspace }}/tests/fixtures/fake-claude/claude
+      - name: Assert outputs
+        env:
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+          SESSION_ID: ${{ steps.action.outputs.session_id }}
+          EXECUTION_FILE: ${{ steps.action.outputs.execution_file }}
+        run: |
+          echo "conclusion: $CONCLUSION"
+          echo "session_id: $SESSION_ID"
+          echo "execution_file: $EXECUTION_FILE"
+          echo "--- fake claude log ---"
+          cat /tmp/fake-claude.log || true
+          if [ "$CONCLUSION" != "success" ]; then
+            echo "FAIL: expected conclusion 'success'"
+            exit 1
+          fi
+          if [ "$SESSION_ID" != "fake-session-0001" ]; then
+            echo "FAIL: expected session_id 'fake-session-0001'"
+            exit 1
+          fi
+          if [ -z "$EXECUTION_FILE" ] || [ ! -f "$EXECUTION_FILE" ]; then
+            echo "FAIL: execution file missing"
+            exit 1
+          fi
+          if ! grep -q '"result"' "$EXECUTION_FILE"; then
+            echo "FAIL: execution file does not contain result message"
+            exit 1
+          fi
+          if ! grep -q "basic inline prompt test" /tmp/fake-claude.log; then
+            echo "FAIL: prompt text was not passed to Claude CLI"
+            exit 1
+          fi
+          echo "PASS"

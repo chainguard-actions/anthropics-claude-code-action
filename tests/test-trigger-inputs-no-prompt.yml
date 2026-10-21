@@ -1,0 +1,40 @@
+name: Test trigger and branch inputs with no prompt
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          github_token: ${{ github.token }}
+          assignee_trigger: claude
+          base_branch: main
+          trigger_phrase: "@claude"
+          label_trigger: claude
+          branch_prefix: claude-
+      - name: Assert action skipped gracefully
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+          BRANCH: ${{ steps.action.outputs.branch_name }}
+          TOKEN_OUT: ${{ steps.action.outputs.github_token }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: '$CONCLUSION'"
+          echo "branch_name: '$BRANCH'"
+          if [ "$OUTCOME" != "success" ]; then
+            echo "FAIL: expected success outcome"
+            exit 1
+          fi
+          if [ -n "$CONCLUSION" ] || [ -n "$BRANCH" ]; then
+            echo "FAIL: Claude should not have run / created a branch without a prompt"
+            exit 1
+          fi
+          if [ -z "$TOKEN_OUT" ]; then
+            echo "FAIL: github_token output is empty"
+            exit 1
+          fi
+          echo "PASS"
