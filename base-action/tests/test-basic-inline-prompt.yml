@@ -1,0 +1,76 @@
+name: Test basic inline prompt with fake Claude CLI
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Install fake Claude CLI
+        run: |
+          mkdir -p /tmp/fake-claude
+          cp "$GITHUB_WORKSPACE/tests/fixtures/fake-claude" /tmp/fake-claude/claude
+          chmod +x /tmp/fake-claude/claude
+          rm -rf /tmp/fake-claude-logs
+      - id: action
+        uses: .
+        with:
+          prompt: "hello from act test marker-inline-17"
+          anthropic_api_key: "sk-ant-not-a-real-key"
+          path_to_claude_code_executable: /tmp/fake-claude/claude
+      - name: Assert conclusion is success
+        env:
+          ACTUAL: ${{ steps.action.outputs.conclusion }}
+        run: |
+          echo "actual: $ACTUAL"
+          if [ "$ACTUAL" != "success" ]; then
+            echo "FAIL: expected 'success'"
+            exit 1
+          fi
+          echo "PASS"
+      - name: Assert session_id output
+        env:
+          ACTUAL: ${{ steps.action.outputs.session_id }}
+        run: |
+          echo "actual: $ACTUAL"
+          if [ "$ACTUAL" != "fake-session-123" ]; then
+            echo "FAIL: expected 'fake-session-123'"
+            exit 1
+          fi
+          echo "PASS"
+      - name: Assert execution_file exists and contains result
+        env:
+          ACTUAL: ${{ steps.action.outputs.execution_file }}
+        run: |
+          echo "actual: $ACTUAL"
+          if [ -z "$ACTUAL" ] || [ ! -f "$ACTUAL" ]; then
+            echo "FAIL: execution file missing"
+            exit 1
+          fi
+          cat "$ACTUAL"
+          if ! grep -q '"result"' "$ACTUAL"; then
+            echo "FAIL: execution file has no result message"
+            exit 1
+          fi
+          echo "PASS"
+      - name: Assert prompt was written and delivered to Claude
+        run: |
+          if ! grep -q "marker-inline-17" /tmp/claude-action/prompt.txt; then
+            echo "FAIL: inline prompt not written to /tmp/claude-action/prompt.txt"
+            exit 1
+          fi
+          cat /tmp/fake-claude-logs/*.log || true
+          if ! cat /tmp/fake-claude-logs/*.log | grep -q "marker-inline-17"; then
+            echo "FAIL: prompt not delivered to Claude CLI"
+            exit 1
+          fi
+          echo "PASS"
+      - name: Assert settings file has enableAllProjectMcpServers
+        run: |
+          cat "$HOME/.claude/settings.json"
+          if ! grep -q '"enableAllProjectMcpServers": true' "$HOME/.claude/settings.json"; then
+            echo "FAIL: enableAllProjectMcpServers not set"
+            exit 1
+          fi
+          echo "PASS"

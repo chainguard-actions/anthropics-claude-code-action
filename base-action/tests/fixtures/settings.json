@@ -1,0 +1,6 @@
+{
+  "model": "claude-fixture-model",
+  "env": {
+    "ACT_FIXTURE_VAR": "fixture-value"
+  }
+}

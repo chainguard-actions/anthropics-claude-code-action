@@ -1,0 +1,1 @@
+Prompt from fixture file for act test marker-prompt-file-42

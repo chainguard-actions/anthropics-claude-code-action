@@ -1,0 +1,115 @@
+#!/usr/bin/env node
+// Fake Claude Code CLI for act tests. Speaks the minimal stream-json protocol
+// used by @anthropic-ai/claude-agent-sdk: answers control requests, and on the
+// first user message (or stdin close) emits a system/init and a success result.
+const fs = require("fs");
+const readline = require("readline");
+
+const LOG_DIR = "/tmp/fake-claude-logs";
+try { fs.mkdirSync(LOG_DIR, { recursive: true }); } catch (e) {}
+const args = process.argv.slice(2);
+fs.appendFileSync(`${LOG_DIR}/invocations.log`, JSON.stringify(args) + "\n");
+
+if (args.includes("--version") || args.includes("-v")) {
+  process.stdout.write("2.1.305 (Claude Code)\n");
+  process.exit(0);
+}
+
+const SESSION = "fake-session-123";
+let done = false;
+
+function send(obj) {
+  process.stdout.write(JSON.stringify(obj) + "\n");
+}
+
+function finish() {
+  if (done) return;
+  done = true;
+  send({
+    type: "system",
+    subtype: "init",
+    session_id: SESSION,
+    model: "fake-model",
+    cwd: process.cwd(),
+    tools: [],
+    mcp_servers: [],
+    permissionMode: "default",
+    slash_commands: [],
+    apiKeySource: "none",
+    output_style: "default",
+    uuid: "00000000-0000-0000-0000-000000000001",
+  });
+  send({
+    type: "assistant",
+    session_id: SESSION,
+    parent_tool_use_id: null,
+    uuid: "00000000-0000-0000-0000-000000000002",
+    message: {
+      id: "msg_fake",
+      type: "message",
+      role: "assistant",
+      model: "fake-model",
+      content: [{ type: "text", text: "fake response" }],
+      stop_reason: "end_turn",
+      stop_sequence: null,
+      usage: { input_tokens: 1, output_tokens: 1 },
+    },
+  });
+  send({
+    type: "result",
+    subtype: "success",
+    is_error: false,
+    duration_ms: 5,
+    duration_api_ms: 1,
+    num_turns: 1,
+    result: "fake response",
+    session_id: SESSION,
+    total_cost_usd: 0,
+    usage: { input_tokens: 1, output_tokens: 1 },
+    modelUsage: {},
+    permission_denials: [],
+    uuid: "00000000-0000-0000-0000-000000000003",
+  });
+}
+
+// Non-streaming invocation (prompt passed as argument): answer immediately.
+if (!args.includes("--input-format")) {
+  finish();
+  process.exit(0);
+}
+
+const rl = readline.createInterface({ input: process.stdin });
+rl.on("line", (raw) => {
+  const line = raw.trim();
+  if (!line) return;
+  fs.appendFileSync(`${LOG_DIR}/stdin.log`, line + "\n");
+  let msg;
+  try { msg = JSON.parse(line); } catch (e) { return; }
+  if (msg.type === "control_request") {
+    const isInit = msg.request && msg.request.subtype === "initialize";
+    send({
+      type: "control_response",
+      response: {
+        subtype: "success",
+        request_id: msg.request_id,
+        response: isInit
+          ? {
+              commands: [],
+              output_style: "default",
+              available_output_styles: ["default"],
+              models: [],
+              account: {},
+            }
+          : {},
+      },
+    });
+    return;
+  }
+  if (msg.type === "user") {
+    finish();
+  }
+});
+rl.on("close", () => {
+  finish();
+  setTimeout(() => process.exit(0), 100);
+});

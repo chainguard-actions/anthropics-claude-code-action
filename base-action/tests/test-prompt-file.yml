@@ -1,0 +1,39 @@
+name: Test prompt_file input with fake Claude CLI
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Install fake Claude CLI
+        run: |
+          mkdir -p /tmp/fake-claude
+          cp "$GITHUB_WORKSPACE/tests/fixtures/fake-claude" /tmp/fake-claude/claude
+          chmod +x /tmp/fake-claude/claude
+          rm -rf /tmp/fake-claude-logs
+      - id: action
+        uses: .
+        with:
+          prompt_file: tests/fixtures/prompt.txt
+          claude_code_oauth_token: "not-a-real-oauth-token"
+          path_to_claude_code_executable: /tmp/fake-claude/claude
+      - name: Assert conclusion is success
+        env:
+          ACTUAL: ${{ steps.action.outputs.conclusion }}
+        run: |
+          echo "actual: $ACTUAL"
+          if [ "$ACTUAL" != "success" ]; then
+            echo "FAIL: expected 'success'"
+            exit 1
+          fi
+          echo "PASS"
+      - name: Assert prompt file content delivered to Claude
+        run: |
+          cat /tmp/fake-claude-logs/*.log || true
+          if ! cat /tmp/fake-claude-logs/*.log | grep -q "marker-prompt-file-42"; then
+            echo "FAIL: prompt file content not delivered to Claude CLI"
+            exit 1
+          fi
+          echo "PASS"

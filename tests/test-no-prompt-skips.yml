@@ -1,0 +1,40 @@
+name: Test no prompt on workflow_dispatch skips execution
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          github_token: ${{ github.token }}
+      - name: Assert github_token output is the provided token
+        env:
+          ACTUAL: ${{ steps.action.outputs.github_token }}
+          EXPECTED: ${{ github.token }}
+        run: |
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: github_token output is empty"
+            exit 1
+          fi
+          if [ "$ACTUAL" != "$EXPECTED" ]; then
+            echo "FAIL: github_token output does not match provided token"
+            exit 1
+          fi
+          echo "PASS"
+      - name: Assert Claude did not run (no conclusion / execution file)
+        env:
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+          EXEC_FILE: ${{ steps.action.outputs.execution_file }}
+          BRANCH: ${{ steps.action.outputs.branch_name }}
+        run: |
+          echo "conclusion: '$CONCLUSION'"
+          echo "execution_file: '$EXEC_FILE'"
+          echo "branch_name: '$BRANCH'"
+          if [ -n "$CONCLUSION" ] || [ -n "$EXEC_FILE" ] || [ -n "$BRANCH" ]; then
+            echo "FAIL: expected skip with no conclusion/execution_file/branch_name"
+            exit 1
+          fi
+          echo "PASS"
