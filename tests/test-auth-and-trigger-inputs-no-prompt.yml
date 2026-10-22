@@ -1,0 +1,40 @@
+name: Test auth and trigger inputs without prompt
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          github_token: ${{ github.token }}
+          anthropic_api_key: "sk-ant-test-placeholder"
+          claude_code_oauth_token: "oauth-test-placeholder"
+          assignee_trigger: "claude"
+          base_branch: "main"
+      - name: Assert action skipped successfully
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          TOKEN_OUT: ${{ steps.action.outputs.github_token }}
+          EXPECTED_TOKEN: ${{ github.token }}
+          EXEC_FILE: ${{ steps.action.outputs.execution_file }}
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: '$CONCLUSION'"
+          echo "execution_file: '$EXEC_FILE'"
+          if [ "$OUTCOME" != "success" ]; then
+            echo "FAIL: expected success"
+            exit 1
+          fi
+          if [ "$TOKEN_OUT" != "$EXPECTED_TOKEN" ]; then
+            echo "FAIL: github_token output does not match provided token"
+            exit 1
+          fi
+          if [ -n "$EXEC_FILE" ]; then
+            echo "FAIL: expected no execution file when no prompt given"
+            exit 1
+          fi
+          echo "PASS"

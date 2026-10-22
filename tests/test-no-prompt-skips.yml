@@ -1,0 +1,34 @@
+name: Test no prompt skips gracefully
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          github_token: ${{ github.token }}
+      - name: Assert action skipped and returned the provided token
+        env:
+          TOKEN_OUT: ${{ steps.action.outputs.github_token }}
+          EXPECTED_TOKEN: ${{ github.token }}
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+          EXEC_FILE: ${{ steps.action.outputs.execution_file }}
+        run: |
+          echo "conclusion: '$CONCLUSION'"
+          echo "execution_file: '$EXEC_FILE'"
+          if [ -z "$TOKEN_OUT" ]; then
+            echo "FAIL: github_token output is empty"
+            exit 1
+          fi
+          if [ "$TOKEN_OUT" != "$EXPECTED_TOKEN" ]; then
+            echo "FAIL: github_token output does not match the provided token"
+            exit 1
+          fi
+          if [ -n "$EXEC_FILE" ]; then
+            echo "FAIL: expected no execution file when no prompt is given"
+            exit 1
+          fi
+          echo "PASS"

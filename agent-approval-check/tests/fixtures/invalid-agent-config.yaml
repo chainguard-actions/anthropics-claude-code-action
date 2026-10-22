@@ -1,0 +1,3 @@
+# Invalid: top-level must be a mapping, not a list.
+- noreply@anthropic.com
+- claude[bot]

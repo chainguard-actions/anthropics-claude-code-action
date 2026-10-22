@@ -1,0 +1,38 @@
+name: Test custom inputs without prompt
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          github_token: ${{ github.token }}
+          trigger_phrase: "/ai"
+          label_trigger: "ai-help"
+          branch_prefix: "claude-"
+          classify_inline_comments: "false"
+          use_sticky_comment: "true"
+      - name: Assert action succeeded and skipped
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          TOKEN_OUT: ${{ steps.action.outputs.github_token }}
+          BRANCH: ${{ steps.action.outputs.branch_name }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "branch_name: '$BRANCH'"
+          if [ "$OUTCOME" != "success" ]; then
+            echo "FAIL: expected success"
+            exit 1
+          fi
+          if [ -z "$TOKEN_OUT" ]; then
+            echo "FAIL: github_token output empty"
+            exit 1
+          fi
+          if [ -n "$BRANCH" ]; then
+            echo "FAIL: no branch should be created when skipping"
+            exit 1
+          fi
+          echo "PASS"

@@ -1,0 +1,41 @@
+name: Test workload identity federation inputs without prompt
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          github_token: ${{ github.token }}
+          anthropic_federation_rule_id: "fdrl_test123"
+          anthropic_organization_id: "00000000-0000-0000-0000-000000000000"
+          anthropic_service_account_id: "svac_test123"
+          anthropic_workspace_id: "wrkspc_test123"
+          anthropic_oidc_audience: "https://api.anthropic.com"
+      - name: Assert action skipped successfully without attempting federation
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          TOKEN_OUT: ${{ steps.action.outputs.github_token }}
+          EXPECTED_TOKEN: ${{ github.token }}
+          EXEC_FILE: ${{ steps.action.outputs.execution_file }}
+          BRANCH: ${{ steps.action.outputs.branch_name }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "execution_file: '$EXEC_FILE'"
+          echo "branch_name: '$BRANCH'"
+          if [ "$OUTCOME" != "success" ]; then
+            echo "FAIL: expected success"
+            exit 1
+          fi
+          if [ "$TOKEN_OUT" != "$EXPECTED_TOKEN" ]; then
+            echo "FAIL: github_token output does not match provided token"
+            exit 1
+          fi
+          if [ -n "$EXEC_FILE" ] || [ -n "$BRANCH" ]; then
+            echo "FAIL: expected no execution file / branch when skipping"
+            exit 1
+          fi
+          echo "PASS"
