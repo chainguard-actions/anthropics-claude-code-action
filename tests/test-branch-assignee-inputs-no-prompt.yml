@@ -1,0 +1,38 @@
+name: Test assignee trigger and base branch without prompt
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          github_token: ${{ github.token }}
+          assignee_trigger: "claude-bot"
+          base_branch: "main"
+          classify_inline_comments: "false"
+      - name: Assert action skipped cleanly
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+          BRANCH_NAME: ${{ steps.action.outputs.branch_name }}
+          OUT_TOKEN: ${{ steps.action.outputs.github_token }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: '$CONCLUSION'"
+          echo "branch_name: '$BRANCH_NAME'"
+          if [ "$OUTCOME" != "success" ]; then
+            echo "FAIL: expected success"
+            exit 1
+          fi
+          if [ -n "$CONCLUSION" ] || [ -n "$BRANCH_NAME" ]; then
+            echo "FAIL: no branch should be created and Claude should not run"
+            exit 1
+          fi
+          if [ -z "$OUT_TOKEN" ]; then
+            echo "FAIL: github_token output is empty"
+            exit 1
+          fi
+          echo "PASS"

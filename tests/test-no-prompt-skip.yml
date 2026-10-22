@@ -1,0 +1,50 @@
+name: Test no prompt skips gracefully
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          github_token: ${{ github.token }}
+      - name: Assert action skipped without running Claude
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+          EXECUTION_FILE: ${{ steps.action.outputs.execution_file }}
+          BRANCH_NAME: ${{ steps.action.outputs.branch_name }}
+          OUT_TOKEN: ${{ steps.action.outputs.github_token }}
+          EXPECTED_TOKEN: ${{ github.token }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: '$CONCLUSION'"
+          echo "execution_file: '$EXECUTION_FILE'"
+          echo "branch_name: '$BRANCH_NAME'"
+          if [ "$OUTCOME" != "success" ]; then
+            echo "FAIL: expected success outcome"
+            exit 1
+          fi
+          if [ -n "$CONCLUSION" ]; then
+            echo "FAIL: conclusion should be empty when Claude was not run"
+            exit 1
+          fi
+          if [ -n "$EXECUTION_FILE" ]; then
+            echo "FAIL: execution_file should be empty when Claude was not run"
+            exit 1
+          fi
+          if [ -n "$BRANCH_NAME" ]; then
+            echo "FAIL: branch_name should be empty when Claude was not run"
+            exit 1
+          fi
+          if [ -z "$OUT_TOKEN" ]; then
+            echo "FAIL: github_token output is empty"
+            exit 1
+          fi
+          if [ "$OUT_TOKEN" != "$EXPECTED_TOKEN" ]; then
+            echo "FAIL: github_token output does not match the provided token"
+            exit 1
+          fi
+          echo "PASS"

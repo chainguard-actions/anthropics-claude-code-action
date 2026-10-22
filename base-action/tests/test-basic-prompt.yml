@@ -1,0 +1,99 @@
+name: Test basic inline prompt with fake Claude executable
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Create fake Claude Code executable
+        run: |
+          mkdir -p /tmp/fake-claude
+          cat > /tmp/fake-claude/claude <<'EOF'
+          #!/usr/bin/env node
+          // Fake Claude Code CLI: speaks the stream-json SDK protocol without any API calls.
+          const fs = require("fs");
+          const readline = require("readline");
+          const dir = "/tmp/fake-claude";
+          const argv = process.argv.slice(2);
+          fs.appendFileSync(dir + "/invocations.log", JSON.stringify(argv) + "\n");
+          const sessionId = "fake-session-1234";
+          let done = false;
+          function out(o) { process.stdout.write(JSON.stringify(o) + "\n"); }
+          function textOf(content) {
+            if (typeof content === "string") return content;
+            if (Array.isArray(content)) return content.map(c => (c && c.text) || "").join("\n");
+            return "";
+          }
+          function finish(promptText) {
+            if (done) return;
+            done = true;
+            fs.writeFileSync(dir + "/prompt.txt", promptText || "");
+            out({ type: "system", subtype: "init", session_id: sessionId, model: "fake-model",
+                  cwd: process.cwd(), tools: [], mcp_servers: [], permissionMode: "default",
+                  apiKeySource: "none", slash_commands: [], output_style: "default",
+                  uuid: "00000000-0000-0000-0000-000000000001" });
+            out({ type: "result", subtype: "success", is_error: false, duration_ms: 1,
+                  duration_api_ms: 1, num_turns: 1, result: "fake ok", session_id: sessionId,
+                  total_cost_usd: 0, usage: { input_tokens: 0, output_tokens: 0 },
+                  modelUsage: {}, permission_denials: [],
+                  uuid: "00000000-0000-0000-0000-000000000002" });
+            setTimeout(() => process.exit(0), 5000);
+          }
+          const pIdx = argv.indexOf("--print");
+          if (pIdx !== -1 && !argv.includes("stream-json") ) {
+            finish(argv[argv.length - 1]);
+          }
+          const rl = readline.createInterface({ input: process.stdin });
+          rl.on("line", (line) => {
+            let msg;
+            try { msg = JSON.parse(line); } catch (e) { return; }
+            if (msg.type === "control_request") {
+              const sub = msg.request && msg.request.subtype;
+              const response = sub === "initialize"
+                ? { commands: [], output_style: "default", available_output_styles: ["default"], models: [], account: {} }
+                : {};
+              out({ type: "control_response", response: { subtype: "success", request_id: msg.request_id, response } });
+            } else if (msg.type === "user") {
+              finish(textOf(msg.message && msg.message.content));
+            }
+          });
+          rl.on("close", () => { if (!done) finish(""); setTimeout(() => process.exit(0), 500); });
+          setTimeout(() => finish(""), 20000);
+          EOF
+          sed -i 's/^          //' /tmp/fake-claude/claude
+          chmod +x /tmp/fake-claude/claude
+          head -3 /tmp/fake-claude/claude
+      - id: action
+        uses: .
+        with:
+          prompt: "Say hello from the act harness"
+          anthropic_api_key: "sk-ant-dummy-not-used"
+          path_to_claude_code_executable: /tmp/fake-claude/claude
+      - name: Assert outputs
+        env:
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+          SESSION_ID: ${{ steps.action.outputs.session_id }}
+          EXEC_FILE: ${{ steps.action.outputs.execution_file }}
+        run: |
+          echo "conclusion: $CONCLUSION"
+          echo "session_id: $SESSION_ID"
+          echo "execution_file: $EXEC_FILE"
+          echo "--- invocations ---"; cat /tmp/fake-claude/invocations.log || true
+          echo "--- prompt ---"; cat /tmp/fake-claude/prompt.txt || true
+          if [ "$CONCLUSION" != "success" ]; then
+            echo "FAIL: expected conclusion 'success'"; exit 1
+          fi
+          if [ "$SESSION_ID" != "fake-session-1234" ]; then
+            echo "FAIL: expected session_id 'fake-session-1234'"; exit 1
+          fi
+          if [ -z "$EXEC_FILE" ] || [ ! -f "$EXEC_FILE" ]; then
+            echo "FAIL: execution file missing"; exit 1
+          fi
+          if ! grep -q "fake-session-1234" "$EXEC_FILE"; then
+            echo "FAIL: execution file does not contain session id"; cat "$EXEC_FILE"; exit 1
+          fi
+          if ! grep -q "Say hello from the act harness" /tmp/claude-action/prompt.txt; then
+            echo "FAIL: inline prompt was not written to /tmp/claude-action/prompt.txt"; exit 1
+          fi
+          echo "PASS"

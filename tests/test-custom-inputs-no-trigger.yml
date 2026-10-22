@@ -1,0 +1,42 @@
+name: Test custom inputs without prompt
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          github_token: ${{ github.token }}
+          trigger_phrase: "/bot"
+          label_trigger: "ai"
+          branch_prefix: "claude-"
+          branch_name_template: "{{prefix}}{{entityType}}-{{entityNumber}}"
+          classify_inline_comments: "false"
+          use_sticky_comment: "true"
+          display_report: "false"
+      - name: Assert action skipped cleanly
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+          BRANCH_NAME: ${{ steps.action.outputs.branch_name }}
+          OUT_TOKEN: ${{ steps.action.outputs.github_token }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: '$CONCLUSION'"
+          echo "branch_name: '$BRANCH_NAME'"
+          if [ "$OUTCOME" != "success" ]; then
+            echo "FAIL: expected success"
+            exit 1
+          fi
+          if [ -n "$CONCLUSION" ] || [ -n "$BRANCH_NAME" ]; then
+            echo "FAIL: Claude should not have run without a prompt"
+            exit 1
+          fi
+          if [ -z "$OUT_TOKEN" ]; then
+            echo "FAIL: github_token output is empty"
+            exit 1
+          fi
+          echo "PASS"
