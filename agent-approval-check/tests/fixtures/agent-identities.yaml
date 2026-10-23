@@ -1,0 +1,9 @@
+agent_emails:
+  - fixture-agent@example.com
+agent_app_logins:
+  - fixture-bot[bot]
+excluded_approver_logins:
+  - rubber-stamp[bot]
+exempt_head_branches: []
+exempt_path_prefixes: {}
+protected_bases: {}

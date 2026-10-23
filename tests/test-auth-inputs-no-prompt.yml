@@ -1,0 +1,47 @@
+name: Test auth inputs accepted with no prompt (skip)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          github_token: ${{ github.token }}
+          anthropic_api_key: "sk-ant-test-dummy-key"
+          claude_code_oauth_token: "dummy-oauth-token"
+          anthropic_federation_rule_id: "fdrl_dummy123"
+          anthropic_organization_id: "00000000-0000-0000-0000-000000000000"
+          anthropic_service_account_id: "svac_dummy123"
+          anthropic_workspace_id: "wrkspc_dummy123"
+          anthropic_oidc_audience: "https://api.anthropic.com"
+      - name: Assert action skipped Claude run without touching auth
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+          SESSION: ${{ steps.action.outputs.session_id }}
+          OUT_TOKEN: ${{ steps.action.outputs.github_token }}
+          EXPECTED_TOKEN: ${{ github.token }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: '$CONCLUSION'"
+          echo "session_id: '$SESSION'"
+          if [ "$OUTCOME" != "success" ]; then
+            echo "FAIL: expected success outcome"
+            exit 1
+          fi
+          if [ -n "$CONCLUSION" ]; then
+            echo "FAIL: conclusion should be empty when no prompt is given"
+            exit 1
+          fi
+          if [ -n "$SESSION" ]; then
+            echo "FAIL: session_id should be empty when Claude did not run"
+            exit 1
+          fi
+          if [ "$OUT_TOKEN" != "$EXPECTED_TOKEN" ]; then
+            echo "FAIL: github_token output does not match provided token"
+            exit 1
+          fi
+          echo "PASS"

@@ -1,0 +1,50 @@
+name: Test custom bun executable path
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      # First run installs bun via setup-bun (no prompt, so it skips quickly)
+      - id: bootstrap
+        uses: .
+        with:
+          github_token: ${{ github.token }}
+      - name: Locate bun installed by first run
+        id: bun
+        run: |
+          BUN_PATH="$(command -v bun)"
+          echo "bun: $BUN_PATH"
+          if [ -z "$BUN_PATH" ] || [ ! -x "$BUN_PATH" ]; then
+            echo "FAIL: bun not found on PATH after first run"
+            exit 1
+          fi
+          echo "path=$BUN_PATH" >> "$GITHUB_OUTPUT"
+      - id: action
+        uses: .
+        with:
+          github_token: ${{ github.token }}
+          path_to_bun_executable: ${{ steps.bun.outputs.path }}
+          classify_inline_comments: "false"
+      - name: Assert custom bun run succeeded and skipped
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+          OUT_TOKEN: ${{ steps.action.outputs.github_token }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: '$CONCLUSION'"
+          if [ "$OUTCOME" != "success" ]; then
+            echo "FAIL: expected success"
+            exit 1
+          fi
+          if [ -n "$CONCLUSION" ]; then
+            echo "FAIL: conclusion should be empty without prompt"
+            exit 1
+          fi
+          if [ -z "$OUT_TOKEN" ]; then
+            echo "FAIL: github_token output is empty"
+            exit 1
+          fi
+          echo "PASS"

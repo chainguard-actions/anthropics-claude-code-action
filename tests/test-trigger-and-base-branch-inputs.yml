@@ -1,0 +1,42 @@
+name: Test assignee_trigger and base_branch with no prompt (skip)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          github_token: ${{ github.token }}
+          assignee_trigger: "claude-bot"
+          base_branch: "main"
+      - name: Assert action skipped cleanly
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+          BRANCH: ${{ steps.action.outputs.branch_name }}
+          OUT_TOKEN: ${{ steps.action.outputs.github_token }}
+          EXPECTED_TOKEN: ${{ github.token }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: '$CONCLUSION'"
+          echo "branch_name: '$BRANCH'"
+          if [ "$OUTCOME" != "success" ]; then
+            echo "FAIL: expected success outcome"
+            exit 1
+          fi
+          if [ -n "$CONCLUSION" ]; then
+            echo "FAIL: Claude should not have run without a prompt"
+            exit 1
+          fi
+          if [ -n "$BRANCH" ]; then
+            echo "FAIL: no branch should be created when skipped"
+            exit 1
+          fi
+          if [ "$OUT_TOKEN" != "$EXPECTED_TOKEN" ]; then
+            echo "FAIL: github_token output does not match provided token"
+            exit 1
+          fi
+          echo "PASS"

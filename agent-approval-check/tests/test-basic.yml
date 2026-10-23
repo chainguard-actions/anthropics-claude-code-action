@@ -1,0 +1,30 @@
+name: Test basic usage (workflow_dispatch is unsupported)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        continue-on-error: true
+      - name: Assert action failed on unsupported workflow_dispatch event
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # The script only supports PR-related events; workflow_dispatch
+          # raises "Unsupported event", so the step must fail (not be skipped).
+          if [ "$OUTCOME" != "failure" ]; then
+            echo "FAIL: expected failure for workflow_dispatch, got '$OUTCOME'"
+            exit 1
+          fi
+          echo "PASS"
+      - name: Assert python 3.12 and dependencies were installed
+        run: |
+          python --version
+          python --version 2>&1 | grep -q "Python 3.12" || { echo "FAIL: python 3.12 not set up"; exit 1; }
+          python -c "import httpx, yaml, tenacity; print(httpx.__version__, yaml.__version__)" || { echo "FAIL: deps missing"; exit 1; }
+          python -c "import httpx; assert httpx.__version__ == '0.28.1', httpx.__version__" || { echo "FAIL: wrong httpx version"; exit 1; }
+          echo "PASS"

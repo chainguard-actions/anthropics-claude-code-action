@@ -1,0 +1,46 @@
+name: Test no prompt skips execution
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          github_token: ${{ github.token }}
+      - name: Assert action skipped Claude run and exposed token
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+          BRANCH: ${{ steps.action.outputs.branch_name }}
+          SESSION: ${{ steps.action.outputs.session_id }}
+          OUT_TOKEN: ${{ steps.action.outputs.github_token }}
+          EXPECTED_TOKEN: ${{ github.token }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: '$CONCLUSION'"
+          echo "branch_name: '$BRANCH'"
+          echo "session_id: '$SESSION'"
+          if [ "$OUTCOME" != "success" ]; then
+            echo "FAIL: expected success outcome"
+            exit 1
+          fi
+          if [ -n "$CONCLUSION" ]; then
+            echo "FAIL: conclusion should be empty when no prompt is given (Claude must not run)"
+            exit 1
+          fi
+          if [ -n "$SESSION" ]; then
+            echo "FAIL: session_id should be empty when Claude did not run"
+            exit 1
+          fi
+          if [ -z "$OUT_TOKEN" ]; then
+            echo "FAIL: github_token output is empty"
+            exit 1
+          fi
+          if [ "$OUT_TOKEN" != "$EXPECTED_TOKEN" ]; then
+            echo "FAIL: github_token output does not match provided token"
+            exit 1
+          fi
+          echo "PASS"
