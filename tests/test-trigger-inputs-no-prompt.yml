@@ -1,0 +1,39 @@
+name: Test trigger and branch inputs accepted without prompt
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          github_token: ${{ github.token }}
+          assignee_trigger: "claude-bot"
+          base_branch: "main"
+          trigger_phrase: "@claude"
+          label_trigger: "claude"
+      - name: Assert action skipped cleanly and returned token
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          OUT_TOKEN: ${{ steps.action.outputs.github_token }}
+          IN_TOKEN: ${{ github.token }}
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+          EXEC_FILE: ${{ steps.action.outputs.execution_file }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: '$CONCLUSION'"
+          if [ "$OUTCOME" != "success" ]; then
+            echo "FAIL: expected success"
+            exit 1
+          fi
+          if [ "$OUT_TOKEN" != "$IN_TOKEN" ]; then
+            echo "FAIL: github_token output does not match provided token"
+            exit 1
+          fi
+          if [ -n "$CONCLUSION" ] || [ -n "$EXEC_FILE" ]; then
+            echo "FAIL: Claude should not have run without a prompt"
+            exit 1
+          fi
+          echo "PASS"

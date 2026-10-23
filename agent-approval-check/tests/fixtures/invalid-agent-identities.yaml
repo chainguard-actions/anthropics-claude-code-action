@@ -1,0 +1,4 @@
+# Intentionally invalid: agent_emails must be a list, not a string.
+agent_emails: noreply@anthropic.com
+agent_app_logins:
+  - claude[bot]

@@ -1,0 +1,35 @@
+name: Test missing authentication fails
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Create fake claude executable (skip network install)
+        run: |
+          mkdir -p "$RUNNER_TEMP/fake-claude"
+          printf '#!/bin/sh\necho "fake claude $*"\nexit 0\n' > "$RUNNER_TEMP/fake-claude/claude"
+          chmod +x "$RUNNER_TEMP/fake-claude/claude"
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          prompt: "Say hello"
+          path_to_claude_code_executable: ${{ runner.temp }}/fake-claude/claude
+      - name: Assert action failed due to missing auth
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: $CONCLUSION"
+          if [ "$OUTCOME" != "failure" ]; then
+            echo "FAIL: expected failure when no credentials are provided"
+            exit 1
+          fi
+          if [ -n "$CONCLUSION" ] && [ "$CONCLUSION" != "failure" ]; then
+            echo "FAIL: expected conclusion 'failure' if set"
+            exit 1
+          fi
+          echo "PASS"
