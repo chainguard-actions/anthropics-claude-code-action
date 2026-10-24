@@ -1,0 +1,63 @@
+name: Test basic inline prompt with fake Claude CLI
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Install fake Claude CLI
+        run: |
+          mkdir -p "$RUNNER_TEMP/fake-claude"
+          cp "$GITHUB_WORKSPACE/tests/fixtures/fake-claude/claude" "$RUNNER_TEMP/fake-claude/claude"
+          chmod +x "$RUNNER_TEMP/fake-claude/claude"
+          rm -f /tmp/fake-claude-input.jsonl
+      - id: action
+        uses: .
+        with:
+          prompt: "Hello from act test MARKER-INLINE-42"
+          anthropic_api_key: "sk-ant-dummy-for-fake-cli"
+          path_to_claude_code_executable: ${{ runner.temp }}/fake-claude/claude
+      - name: Assert conclusion is success
+        env:
+          ACTUAL: ${{ steps.action.outputs.conclusion }}
+        run: |
+          echo "actual: $ACTUAL"
+          if [ "$ACTUAL" != "success" ]; then
+            echo "FAIL: expected 'success'"
+            exit 1
+          fi
+          echo "PASS"
+      - name: Assert session_id from init message
+        env:
+          ACTUAL: ${{ steps.action.outputs.session_id }}
+        run: |
+          echo "actual: $ACTUAL"
+          if [ "$ACTUAL" != "fake-session-0001" ]; then
+            echo "FAIL: expected 'fake-session-0001'"
+            exit 1
+          fi
+          echo "PASS"
+      - name: Assert execution file written
+        env:
+          ACTUAL: ${{ steps.action.outputs.execution_file }}
+        run: |
+          echo "actual: $ACTUAL"
+          if [ -z "$ACTUAL" ] || [ ! -f "$ACTUAL" ]; then
+            echo "FAIL: execution file missing"
+            exit 1
+          fi
+          cat "$ACTUAL"
+          if ! grep -q "fake-session-0001" "$ACTUAL"; then
+            echo "FAIL: execution file does not contain session id"
+            exit 1
+          fi
+          echo "PASS"
+      - name: Assert prompt was delivered to the CLI
+        run: |
+          cat /tmp/fake-claude-input.jsonl || true
+          if ! grep -q "MARKER-INLINE-42" /tmp/fake-claude-input.jsonl; then
+            echo "FAIL: prompt not passed to Claude CLI"
+            exit 1
+          fi
+          echo "PASS"

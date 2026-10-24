@@ -1,0 +1,47 @@
+name: Test prompt_file input with fake Claude CLI
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Install fake Claude CLI
+        run: |
+          mkdir -p "$RUNNER_TEMP/fake-claude"
+          cp "$GITHUB_WORKSPACE/tests/fixtures/fake-claude/claude" "$RUNNER_TEMP/fake-claude/claude"
+          chmod +x "$RUNNER_TEMP/fake-claude/claude"
+          rm -f /tmp/fake-claude-input.jsonl
+      - id: action
+        uses: .
+        with:
+          prompt_file: ${{ github.workspace }}/tests/fixtures/prompt.txt
+          anthropic_api_key: "sk-ant-dummy-for-fake-cli"
+          settings: '{"env": {"FOO": "bar"}}'
+          path_to_claude_code_executable: ${{ runner.temp }}/fake-claude/claude
+      - name: Assert conclusion is success
+        env:
+          ACTUAL: ${{ steps.action.outputs.conclusion }}
+        run: |
+          echo "actual: $ACTUAL"
+          if [ "$ACTUAL" != "success" ]; then
+            echo "FAIL: expected 'success'"
+            exit 1
+          fi
+          echo "PASS"
+      - name: Assert prompt file content was delivered to the CLI
+        run: |
+          cat /tmp/fake-claude-input.jsonl || true
+          if ! grep -q "MARKER-PROMPT-FILE-77" /tmp/fake-claude-input.jsonl; then
+            echo "FAIL: prompt file content not passed to Claude CLI"
+            exit 1
+          fi
+          echo "PASS"
+      - name: Assert settings were written
+        run: |
+          cat "$HOME/.claude/settings.json" || true
+          if ! grep -q '"FOO"' "$HOME/.claude/settings.json"; then
+            echo "FAIL: settings not merged into ~/.claude/settings.json"
+            exit 1
+          fi
+          echo "PASS"

@@ -1,0 +1,112 @@
+#!/usr/bin/env node
+// Fake Claude Code CLI for tests. Speaks the minimal stream-json protocol used
+// by @anthropic-ai/claude-agent-sdk: answers control requests and, on receiving
+// a user message, emits a system/init message followed by a success result.
+const fs = require("fs");
+const readline = require("readline");
+
+const LOG = "/tmp/fake-claude-input.jsonl";
+const SESSION = "fake-session-0001";
+const argv = process.argv.slice(2);
+
+function log(obj) {
+  try {
+    fs.appendFileSync(LOG, JSON.stringify(obj) + "\n");
+  } catch (e) {}
+}
+
+log({ argv });
+
+if (argv.includes("--version") || argv.includes("-v")) {
+  process.stdout.write("2.1.310 (Claude Code)\n");
+  process.exit(0);
+}
+
+function send(o) {
+  process.stdout.write(JSON.stringify(o) + "\n");
+}
+
+let done = false;
+function respond() {
+  if (done) return;
+  done = true;
+  send({
+    type: "system",
+    subtype: "init",
+    uuid: "00000000-0000-0000-0000-000000000001",
+    session_id: SESSION,
+    apiKeySource: "ANTHROPIC_API_KEY",
+    claude_code_version: "2.1.310",
+    cwd: process.cwd(),
+    tools: [],
+    mcp_servers: [],
+    model: "fake-model",
+    permissionMode: "default",
+    slash_commands: [],
+    output_style: "default",
+    skills: [],
+    plugins: [],
+  });
+  send({
+    type: "result",
+    subtype: "success",
+    uuid: "00000000-0000-0000-0000-000000000002",
+    session_id: SESSION,
+    is_error: false,
+    duration_ms: 5,
+    duration_api_ms: 1,
+    num_turns: 1,
+    result: "fake result",
+    stop_reason: "end_turn",
+    total_cost_usd: 0,
+    usage: {
+      input_tokens: 1,
+      output_tokens: 1,
+      cache_creation_input_tokens: 0,
+      cache_read_input_tokens: 0,
+    },
+    modelUsage: {},
+    permission_denials: [],
+  });
+}
+
+const rl = readline.createInterface({ input: process.stdin });
+rl.on("line", (line) => {
+  line = line.trim();
+  if (!line) return;
+  let m;
+  try {
+    m = JSON.parse(line);
+  } catch (e) {
+    return;
+  }
+  log(m);
+  if (m.type === "control_request") {
+    send({
+      type: "control_response",
+      response: {
+        subtype: "success",
+        request_id: m.request_id,
+        response: {
+          commands: [],
+          output_style: "default",
+          available_output_styles: ["default"],
+          models: [],
+          account: {},
+        },
+      },
+    });
+  } else if (m.type === "user") {
+    respond();
+  }
+});
+rl.on("close", () => process.exit(0));
+
+// Non-streaming (--print <prompt>) mode fallback
+if (!argv.includes("--input-format")) {
+  respond();
+  setTimeout(() => process.exit(0), 200);
+}
+
+// Safety net
+setTimeout(() => process.exit(0), 60000);
