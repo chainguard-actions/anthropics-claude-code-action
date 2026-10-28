@@ -1,0 +1,40 @@
+name: Test prompt_file input
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      FAKE_CLAUDE_LOG_DIR: /tmp/fake-claude-promptfile
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Install fake claude CLI
+        run: |
+          rm -rf "$FAKE_CLAUDE_LOG_DIR"
+          mkdir -p "$RUNNER_TEMP/fake-bin"
+          install -m 0755 tests/fixtures/fake-claude.js "$RUNNER_TEMP/fake-bin/claude"
+          echo "FAKE_CLAUDE=$RUNNER_TEMP/fake-bin/claude" >> "$GITHUB_ENV"
+      - id: action
+        uses: .
+        with:
+          prompt_file: ${{ github.workspace }}/tests/fixtures/prompt.txt
+          anthropic_api_key: sk-ant-test-not-a-real-key
+          path_to_claude_code_executable: ${{ env.FAKE_CLAUDE }}
+      - name: Assert conclusion is success
+        env:
+          ACTUAL: ${{ steps.action.outputs.conclusion }}
+        run: |
+          echo "actual: $ACTUAL"
+          if [ "$ACTUAL" != "success" ]; then
+            echo "FAIL: expected 'success'"
+            exit 1
+          fi
+          echo "PASS"
+      - name: Assert prompt file content delivered to Claude
+        run: |
+          cat "$FAKE_CLAUDE_LOG_DIR/prompt.txt" || true
+          if ! grep -q 'summarize-marker-7731' "$FAKE_CLAUDE_LOG_DIR/prompt.txt"; then
+            echo "FAIL: prompt file content not delivered"
+            exit 1
+          fi
+          echo "PASS"

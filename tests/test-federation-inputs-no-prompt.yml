@@ -1,0 +1,41 @@
+name: Test workload identity federation inputs without prompt
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          github_token: ${{ github.token }}
+          anthropic_federation_rule_id: "fdrl_test123"
+          anthropic_organization_id: "00000000-0000-0000-0000-000000000000"
+          anthropic_service_account_id: "svac_test123"
+          anthropic_workspace_id: "wrkspc_test123"
+          anthropic_oidc_audience: "https://api.anthropic.com"
+      - name: Assert action skipped cleanly without prompt
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          TOKEN_OUT: ${{ steps.action.outputs.github_token }}
+          EXPECTED: ${{ github.token }}
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+          SESSION: ${{ steps.action.outputs.session_id }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: '$CONCLUSION'"
+          echo "session_id: '$SESSION'"
+          if [ "$OUTCOME" != "success" ]; then
+            echo "FAIL: expected success"
+            exit 1
+          fi
+          if [ "$TOKEN_OUT" != "$EXPECTED" ]; then
+            echo "FAIL: github_token output does not match provided token"
+            exit 1
+          fi
+          if [ -n "$CONCLUSION" ] || [ -n "$SESSION" ]; then
+            echo "FAIL: Claude should not run without a prompt"
+            exit 1
+          fi
+          echo "PASS"

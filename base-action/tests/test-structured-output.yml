@@ -1,0 +1,63 @@
+name: Test structured output with --json-schema
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      FAKE_CLAUDE_LOG_DIR: /tmp/fake-claude-structured
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Install fake claude CLI
+        run: |
+          rm -rf "$FAKE_CLAUDE_LOG_DIR"
+          mkdir -p "$RUNNER_TEMP/fake-bin"
+          install -m 0755 tests/fixtures/fake-claude.js "$RUNNER_TEMP/fake-bin/claude"
+          echo "FAKE_CLAUDE=$RUNNER_TEMP/fake-bin/claude" >> "$GITHUB_ENV"
+      - id: action
+        uses: .
+        with:
+          prompt: "Return the answer"
+          anthropic_api_key: sk-ant-test-not-a-real-key
+          path_to_claude_code_executable: ${{ env.FAKE_CLAUDE }}
+          claude_args: >-
+            --json-schema '{"type":"object","properties":{"answer":{"type":"string"},"ok":{"type":"boolean"}}}'
+            --custom-flag-xyz custom-value
+      - name: Assert conclusion is success
+        env:
+          ACTUAL: ${{ steps.action.outputs.conclusion }}
+        run: |
+          echo "actual: $ACTUAL"
+          if [ "$ACTUAL" != "success" ]; then
+            echo "FAIL: expected 'success'"
+            exit 1
+          fi
+          echo "PASS"
+      - name: Assert structured_output parsed
+        env:
+          ACTUAL: ${{ steps.action.outputs.structured_output }}
+          ANSWER: ${{ fromJSON(steps.action.outputs.structured_output || '{}').answer }}
+        run: |
+          echo "actual: $ACTUAL"
+          echo "answer: $ANSWER"
+          if [ "$ANSWER" != "42" ]; then
+            echo "FAIL: expected answer '42'"
+            exit 1
+          fi
+          echo "PASS"
+      - name: Assert claude_args passed through to CLI
+        run: |
+          cat "$FAKE_CLAUDE_LOG_DIR/args.txt"
+          if ! grep -qx -- '--json-schema' "$FAKE_CLAUDE_LOG_DIR/args.txt"; then
+            echo "FAIL: --json-schema not passed"
+            exit 1
+          fi
+          if ! grep -qx -- '--custom-flag-xyz' "$FAKE_CLAUDE_LOG_DIR/args.txt"; then
+            echo "FAIL: --custom-flag-xyz not passed"
+            exit 1
+          fi
+          if ! grep -qx -- 'custom-value' "$FAKE_CLAUDE_LOG_DIR/args.txt"; then
+            echo "FAIL: custom-value not passed"
+            exit 1
+          fi
+          echo "PASS"

@@ -1,0 +1,79 @@
+name: Test basic inline prompt
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      FAKE_CLAUDE_LOG_DIR: /tmp/fake-claude-basic
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Install fake claude CLI
+        run: |
+          rm -rf "$FAKE_CLAUDE_LOG_DIR"
+          mkdir -p "$RUNNER_TEMP/fake-bin"
+          install -m 0755 tests/fixtures/fake-claude.js "$RUNNER_TEMP/fake-bin/claude"
+          echo "FAKE_CLAUDE=$RUNNER_TEMP/fake-bin/claude" >> "$GITHUB_ENV"
+      - id: action
+        uses: .
+        with:
+          prompt: "Say hello basic-marker-4242"
+          anthropic_api_key: sk-ant-test-not-a-real-key
+          path_to_claude_code_executable: ${{ env.FAKE_CLAUDE }}
+      - name: Assert conclusion is success
+        env:
+          ACTUAL: ${{ steps.action.outputs.conclusion }}
+        run: |
+          echo "actual: $ACTUAL"
+          if [ "$ACTUAL" != "success" ]; then
+            echo "FAIL: expected 'success'"
+            exit 1
+          fi
+          echo "PASS"
+      - name: Assert session_id
+        env:
+          ACTUAL: ${{ steps.action.outputs.session_id }}
+        run: |
+          echo "actual: $ACTUAL"
+          if [ "$ACTUAL" != "fake-session-123" ]; then
+            echo "FAIL: expected 'fake-session-123'"
+            exit 1
+          fi
+          echo "PASS"
+      - name: Assert execution file written
+        env:
+          ACTUAL: ${{ steps.action.outputs.execution_file }}
+        run: |
+          echo "actual: $ACTUAL"
+          if [ -z "$ACTUAL" ] || [ ! -f "$ACTUAL" ]; then
+            echo "FAIL: execution file missing"
+            exit 1
+          fi
+          cat "$ACTUAL"
+          if ! grep -q '"type": "result"' "$ACTUAL"; then
+            echo "FAIL: execution file lacks result message"
+            exit 1
+          fi
+          if ! grep -q 'fake-session-123' "$ACTUAL"; then
+            echo "FAIL: execution file lacks session id"
+            exit 1
+          fi
+          echo "PASS"
+      - name: Assert prompt delivered to Claude
+        run: |
+          cat "$FAKE_CLAUDE_LOG_DIR/prompt.txt" || true
+          if ! grep -q 'basic-marker-4242' "$FAKE_CLAUDE_LOG_DIR/prompt.txt"; then
+            echo "FAIL: prompt not delivered"
+            exit 1
+          fi
+          echo "PASS"
+      - name: Assert structured_output empty without schema
+        env:
+          ACTUAL: ${{ steps.action.outputs.structured_output }}
+        run: |
+          echo "actual: $ACTUAL"
+          if [ -n "$ACTUAL" ]; then
+            echo "FAIL: expected empty structured_output"
+            exit 1
+          fi
+          echo "PASS"

@@ -1,0 +1,51 @@
+name: Test required_approvals below 1 is rejected
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          required_approvals: "-1"
+      - name: Assert action failed
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" != "failure" ]; then
+            echo "FAIL: expected failure with required_approvals < 1, got '$OUTCOME'"
+            exit 1
+          fi
+          echo "PASS"
+      - name: Verify failure reason by re-running the script
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPOSITORY: example-owner/example-repo
+          GH_EVENT_NAME: workflow_dispatch
+          AGENT_EMAILS: noreply@anthropic.com
+          AGENT_LOGINS: claude[bot]
+          REQUIRED_APPROVALS: "-1"
+        run: |
+          SCRIPT="$(find "$GITHUB_WORKSPACE" -name agent_approval_check.py -not -path '*/.git/*' | head -n1)"
+          echo "script: $SCRIPT"
+          [ -n "$SCRIPT" ] || { echo "FAIL: script not found"; exit 1; }
+          echo '{}' > "$RUNNER_TEMP/event.json"
+          set +e
+          GH_EVENT_PATH="$RUNNER_TEMP/event.json" python "$SCRIPT" > "$RUNNER_TEMP/out.log" 2>&1
+          RC=$?
+          set -e
+          cat "$RUNNER_TEMP/out.log"
+          echo "rc: $RC"
+          if [ "$RC" != "1" ]; then
+            echo "FAIL: expected exit code 1"
+            exit 1
+          fi
+          if ! grep -q "REQUIRED_APPROVALS must be >= 1" "$RUNNER_TEMP/out.log"; then
+            echo "FAIL: expected 'REQUIRED_APPROVALS must be >= 1' in output"
+            exit 1
+          fi
+          echo "PASS"
