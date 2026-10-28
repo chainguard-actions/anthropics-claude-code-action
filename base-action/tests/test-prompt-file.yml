@@ -1,0 +1,35 @@
+name: Test prompt_file input
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Install fake Claude CLI
+        run: |
+          mkdir -p /tmp/fake-claude
+          cp "$GITHUB_WORKSPACE/tests/fixtures/fake-claude/claude" /tmp/fake-claude/claude
+          chmod +x /tmp/fake-claude/claude
+      - id: action
+        uses: .
+        with:
+          prompt_file: ${{ github.workspace }}/tests/fixtures/prompt.txt
+          anthropic_api_key: "sk-ant-test-not-real"
+          path_to_claude_code_executable: /tmp/fake-claude/claude
+      - name: Assert conclusion is success
+        env:
+          ACTUAL: ${{ steps.action.outputs.conclusion }}
+          SESSION: ${{ steps.action.outputs.session_id }}
+        run: |
+          echo "conclusion: $ACTUAL"
+          echo "session_id: $SESSION"
+          if [ "$ACTUAL" != "success" ]; then
+            echo "FAIL: expected 'success'"
+            exit 1
+          fi
+          if [ "$SESSION" != "fake-session-1234" ]; then
+            echo "FAIL: expected session id 'fake-session-1234'"
+            exit 1
+          fi
+          echo "PASS"

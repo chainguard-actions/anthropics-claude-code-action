@@ -1,0 +1,43 @@
+name: Test settings JSON input is written to user settings
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Install fake Claude CLI
+        run: |
+          mkdir -p /tmp/fake-claude
+          cp "$GITHUB_WORKSPACE/tests/fixtures/fake-claude/claude" /tmp/fake-claude/claude
+          chmod +x /tmp/fake-claude/claude
+          rm -f "$HOME/.claude/settings.json"
+      - id: action
+        uses: .
+        with:
+          prompt: "Say hello"
+          settings: '{"model": "claude-test-model", "env": {"MY_TEST_VAR": "abc123"}}'
+          anthropic_api_key: "sk-ant-test-not-real"
+          path_to_claude_code_executable: /tmp/fake-claude/claude
+      - name: Assert settings file content
+        env:
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+        run: |
+          echo "conclusion: $CONCLUSION"
+          SETTINGS="$HOME/.claude/settings.json"
+          if [ ! -f "$SETTINGS" ]; then
+            echo "FAIL: $SETTINGS not found"
+            exit 1
+          fi
+          cat "$SETTINGS"
+          for needle in '"model": "claude-test-model"' '"MY_TEST_VAR": "abc123"' '"enableAllProjectMcpServers": true'; do
+            if ! grep -qF "$needle" "$SETTINGS"; then
+              echo "FAIL: missing $needle"
+              exit 1
+            fi
+          done
+          if [ "$CONCLUSION" != "success" ]; then
+            echo "FAIL: expected conclusion 'success'"
+            exit 1
+          fi
+          echo "PASS"

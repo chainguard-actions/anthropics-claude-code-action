@@ -1,0 +1,38 @@
+name: Test classify disabled with custom inputs
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          github_token: ${{ github.token }}
+          classify_inline_comments: "false"
+          trigger_phrase: "@bot"
+          branch_prefix: "claude-"
+          use_sticky_comment: "true"
+          display_report: "false"
+      - name: Assert action succeeded and returned token
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          ACTUAL: ${{ steps.action.outputs.github_token }}
+          EXPECTED: ${{ github.token }}
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+        run: |
+          echo "outcome: $OUTCOME conclusion: '$CONCLUSION'"
+          if [ "$OUTCOME" != "success" ]; then
+            echo "FAIL: expected success"
+            exit 1
+          fi
+          if [ "$ACTUAL" != "$EXPECTED" ]; then
+            echo "FAIL: github_token output mismatch"
+            exit 1
+          fi
+          if [ -n "$CONCLUSION" ]; then
+            echo "FAIL: expected no conclusion when no prompt"
+            exit 1
+          fi
+          echo "PASS"

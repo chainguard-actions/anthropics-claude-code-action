@@ -1,0 +1,75 @@
+name: Test basic inline prompt
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Install fake Claude CLI
+        run: |
+          mkdir -p /tmp/fake-claude
+          cp "$GITHUB_WORKSPACE/tests/fixtures/fake-claude/claude" /tmp/fake-claude/claude
+          chmod +x /tmp/fake-claude/claude
+          rm -f /tmp/fake-claude-args.log
+      - id: action
+        uses: .
+        with:
+          prompt: "Say hello"
+          anthropic_api_key: "sk-ant-test-not-real"
+          path_to_claude_code_executable: /tmp/fake-claude/claude
+      - name: Assert conclusion is success
+        env:
+          ACTUAL: ${{ steps.action.outputs.conclusion }}
+        run: |
+          echo "actual: $ACTUAL"
+          if [ "$ACTUAL" != "success" ]; then
+            echo "FAIL: expected 'success'"
+            exit 1
+          fi
+          echo "PASS"
+      - name: Assert session_id
+        env:
+          ACTUAL: ${{ steps.action.outputs.session_id }}
+        run: |
+          echo "actual: $ACTUAL"
+          if [ "$ACTUAL" != "fake-session-1234" ]; then
+            echo "FAIL: expected 'fake-session-1234'"
+            exit 1
+          fi
+          echo "PASS"
+      - name: Assert execution file written
+        env:
+          EXEC_FILE: ${{ steps.action.outputs.execution_file }}
+        run: |
+          echo "execution_file: $EXEC_FILE"
+          if [ -z "$EXEC_FILE" ] || [ ! -f "$EXEC_FILE" ]; then
+            echo "FAIL: execution file missing"
+            exit 1
+          fi
+          cat "$EXEC_FILE"
+          if ! grep -q "fake-session-1234" "$EXEC_FILE"; then
+            echo "FAIL: execution file does not contain session id"
+            exit 1
+          fi
+          if ! grep -q '"result"' "$EXEC_FILE"; then
+            echo "FAIL: execution file has no result message"
+            exit 1
+          fi
+          echo "PASS"
+      - name: Assert inline prompt file and fake CLI invoked
+        run: |
+          if [ ! -f /tmp/claude-action/prompt.txt ]; then
+            echo "FAIL: inline prompt file not created"
+            exit 1
+          fi
+          if ! grep -q "Say hello" /tmp/claude-action/prompt.txt; then
+            echo "FAIL: prompt content mismatch"
+            exit 1
+          fi
+          if [ ! -s /tmp/fake-claude-args.log ]; then
+            echo "FAIL: fake claude was not invoked"
+            exit 1
+          fi
+          cat /tmp/fake-claude-args.log
+          echo "PASS"

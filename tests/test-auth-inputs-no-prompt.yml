@@ -1,0 +1,42 @@
+name: Test auth inputs accepted (no prompt skips before auth validation)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          github_token: ${{ github.token }}
+          classify_inline_comments: "false"
+          anthropic_api_key: "sk-ant-test-not-a-real-key"
+          claude_code_oauth_token: "test-oauth-token-not-real"
+          anthropic_federation_rule_id: "fdrl_test123"
+          anthropic_organization_id: "00000000-0000-0000-0000-000000000000"
+          anthropic_service_account_id: "svac_test123"
+          anthropic_workspace_id: "wrkspc_test123"
+          anthropic_oidc_audience: "https://api.anthropic.com"
+      - name: Assert action skipped and returned provided token
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          ACTUAL: ${{ steps.action.outputs.github_token }}
+          EXPECTED: ${{ github.token }}
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+          EXEC_FILE: ${{ steps.action.outputs.execution_file }}
+        run: |
+          echo "outcome: $OUTCOME conclusion: '$CONCLUSION' exec: '$EXEC_FILE'"
+          if [ "$OUTCOME" != "success" ]; then
+            echo "FAIL: expected success, got '$OUTCOME'"
+            exit 1
+          fi
+          if [ "$ACTUAL" != "$EXPECTED" ]; then
+            echo "FAIL: github_token output does not match provided token"
+            exit 1
+          fi
+          if [ -n "$CONCLUSION" ] || [ -n "$EXEC_FILE" ]; then
+            echo "FAIL: expected Claude to be skipped with no prompt"
+            exit 1
+          fi
+          echo "PASS"

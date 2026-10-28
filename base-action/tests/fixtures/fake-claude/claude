@@ -1,0 +1,111 @@
+#!/usr/bin/env node
+// Fake Claude Code CLI used by the act tests. It implements just enough of the
+// stream-json protocol used by @anthropic-ai/claude-agent-sdk to let the action
+// complete without network access or a real API key.
+const fs = require("fs");
+const readline = require("readline");
+
+const args = process.argv.slice(2);
+
+if (args.includes("--version") || args.includes("-v")) {
+  process.stdout.write("2.1.312 (Claude Code)\n");
+  process.exit(0);
+}
+
+const logFile = process.env.FAKE_CLAUDE_LOG || "/tmp/fake-claude-args.log";
+try {
+  fs.appendFileSync(logFile, JSON.stringify(args) + "\n");
+} catch (e) {}
+
+const SESSION = "fake-session-1234";
+let done = false;
+
+function out(obj) {
+  process.stdout.write(JSON.stringify(obj) + "\n");
+}
+
+function finish() {
+  if (done) return;
+  done = true;
+  out({
+    type: "system",
+    subtype: "init",
+    session_id: SESSION,
+    model: "fake-model",
+    cwd: process.cwd(),
+    tools: [],
+    mcp_servers: [],
+    permissionMode: "default",
+    apiKeySource: "none",
+    slash_commands: [],
+    output_style: "default",
+    uuid: "00000000-0000-0000-0000-000000000001",
+  });
+  out({
+    type: "result",
+    subtype: "success",
+    is_error: false,
+    duration_ms: 1,
+    duration_api_ms: 1,
+    num_turns: 1,
+    result: "fake result",
+    session_id: SESSION,
+    total_cost_usd: 0,
+    usage: {
+      input_tokens: 0,
+      output_tokens: 0,
+      cache_creation_input_tokens: 0,
+      cache_read_input_tokens: 0,
+    },
+    modelUsage: {},
+    permission_denials: [],
+    uuid: "00000000-0000-0000-0000-000000000002",
+  });
+  setTimeout(() => process.exit(0), 3000);
+}
+
+const idx = args.indexOf("--input-format");
+const streamInput = idx !== -1 && args[idx + 1] === "stream-json";
+
+if (!streamInput) {
+  finish();
+} else {
+  const rl = readline.createInterface({ input: process.stdin });
+  rl.on("line", (line) => {
+    line = line.trim();
+    if (!line) return;
+    let msg;
+    try {
+      msg = JSON.parse(line);
+    } catch (e) {
+      return;
+    }
+    if (msg.type === "control_request") {
+      const subtype = msg.request && msg.request.subtype;
+      let response = {};
+      if (subtype === "initialize") {
+        response = {
+          commands: [],
+          models: [],
+          account: {},
+          output_style: "default",
+          available_output_styles: ["default"],
+        };
+      }
+      out({
+        type: "control_response",
+        response: {
+          subtype: "success",
+          request_id: msg.request_id,
+          response,
+        },
+      });
+    } else if (msg.type === "user") {
+      finish();
+    }
+  });
+  rl.on("close", () => {
+    finish();
+    setTimeout(() => process.exit(0), 500);
+  });
+}
