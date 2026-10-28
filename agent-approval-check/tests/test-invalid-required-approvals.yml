@@ -1,0 +1,37 @@
+name: Test invalid required_approvals
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          required_approvals: "0"
+      - name: Assert action failed
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" != "failure" ]; then
+            echo "FAIL: expected failure for required_approvals=0, got '$OUTCOME'"
+            exit 1
+          fi
+          echo "PASS"
+      - name: Assert script reports validation error
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          SCRIPT="$(find "$GITHUB_WORKSPACE" -name agent_approval_check.py -not -path '*/tests/*' -not -path '*/.git/*' | head -1)"
+          [ -n "$SCRIPT" ] || { echo "FAIL: script not found"; exit 1; }
+          set +e
+          OUT="$(GH_REPOSITORY=example/repo REQUIRED_APPROVALS=0 AGENT_EMAILS=noreply@anthropic.com python "$SCRIPT" 2>&1)"
+          RC=$?
+          set -e
+          echo "$OUT"
+          [ "$RC" -eq 1 ] || { echo "FAIL: expected exit 1, got $RC"; exit 1; }
+          echo "$OUT" | grep -q "REQUIRED_APPROVALS must be >= 1" || { echo "FAIL: missing message"; exit 1; }
+          echo "PASS"

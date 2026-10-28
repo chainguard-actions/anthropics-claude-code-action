@@ -1,0 +1,45 @@
+name: Test custom inputs without prompt
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          github_token: ${{ github.token }}
+          trigger_phrase: "/claude"
+          label_trigger: "ai"
+          branch_prefix: "claude-"
+          branch_name_template: "{{prefix}}{{entityType}}-{{entityNumber}}"
+          classify_inline_comments: "false"
+          use_sticky_comment: "true"
+      - name: Assert skipped cleanly with no branch created
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          OUT_TOKEN: ${{ steps.action.outputs.github_token }}
+          BRANCH: ${{ steps.action.outputs.branch_name }}
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "branch_name: '$BRANCH'"
+          echo "conclusion: '$CONCLUSION'"
+          if [ "$OUTCOME" != "success" ]; then
+            echo "FAIL: expected success"
+            exit 1
+          fi
+          if [ -z "$OUT_TOKEN" ]; then
+            echo "FAIL: github_token output empty"
+            exit 1
+          fi
+          if [ -n "$BRANCH" ]; then
+            echo "FAIL: no branch should be created without a prompt"
+            exit 1
+          fi
+          if [ -n "$CONCLUSION" ]; then
+            echo "FAIL: conclusion should be empty"
+            exit 1
+          fi
+          echo "PASS"

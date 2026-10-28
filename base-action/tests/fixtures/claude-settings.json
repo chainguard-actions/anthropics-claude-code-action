@@ -1,0 +1,6 @@
+{
+  "model": "fixture-model-from-file",
+  "env": {
+    "FIXTURE_MARKER": "from-settings-file"
+  }
+}
