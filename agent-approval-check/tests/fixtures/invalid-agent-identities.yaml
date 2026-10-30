@@ -1,0 +1,3 @@
+agent_emails: noreply@anthropic.com
+agent_app_logins:
+  - claude[bot]

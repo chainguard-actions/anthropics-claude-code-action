@@ -1,0 +1,39 @@
+name: Test auth inputs without prompt skip cleanly
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          github_token: ${{ github.token }}
+          anthropic_api_key: "sk-ant-test-placeholder"
+          claude_code_oauth_token: "oauth-test-placeholder"
+          anthropic_federation_rule_id: "fdrl_test123"
+          anthropic_organization_id: "00000000-0000-0000-0000-000000000000"
+          anthropic_service_account_id: "svac_test123"
+          anthropic_workspace_id: "wrkspc_test123"
+          anthropic_oidc_audience: "https://api.anthropic.com"
+      - name: Assert skipped cleanly without running Claude
+        env:
+          OUT_TOKEN: ${{ steps.action.outputs.github_token }}
+          IN_TOKEN: ${{ github.token }}
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+          EXEC_FILE: ${{ steps.action.outputs.execution_file }}
+          SESSION: ${{ steps.action.outputs.session_id }}
+        run: |
+          echo "conclusion: '$CONCLUSION'"
+          echo "execution_file: '$EXEC_FILE'"
+          echo "session_id: '$SESSION'"
+          if [ "$OUT_TOKEN" != "$IN_TOKEN" ]; then
+            echo "FAIL: github_token output mismatch"
+            exit 1
+          fi
+          if [ -n "$CONCLUSION" ] || [ -n "$EXEC_FILE" ] || [ -n "$SESSION" ]; then
+            echo "FAIL: expected Claude not to run without a prompt"
+            exit 1
+          fi
+          echo "PASS"

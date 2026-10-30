@@ -1,0 +1,41 @@
+name: Test Bedrock without AWS_REGION fails
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      AWS_BEARER_TOKEN_BEDROCK: dummy-bearer
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Prepare fake claude executable and clean settings
+        run: |
+          mkdir -p /tmp/fake-claude
+          printf '#!/bin/sh\necho "fake claude should not be invoked" >&2\nexit 1\n' > /tmp/fake-claude/claude
+          chmod +x /tmp/fake-claude/claude
+          rm -rf "$HOME/.claude"
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          prompt: "Say hello"
+          use_bedrock: "true"
+          path_to_claude_code_executable: /tmp/fake-claude/claude
+      - name: Assert action failed due to missing AWS_REGION
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" != "failure" ]; then
+            echo "FAIL: expected failure when AWS_REGION is missing for Bedrock"
+            exit 1
+          fi
+          if ! command -v bun >/dev/null 2>&1; then
+            echo "FAIL: bun not on PATH - action failed before reaching the run step"
+            exit 1
+          fi
+          if [ -f "$HOME/.claude/settings.json" ]; then
+            echo "FAIL: settings.json should not be written when validation fails"
+            exit 1
+          fi
+          echo "PASS"
