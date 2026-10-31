@@ -1,0 +1,57 @@
+name: Test custom bun executable path
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.4
+          no-cache: true
+      - name: Copy bun to a custom location
+        id: custom
+        env:
+          BUN_PATH: ${{ steps.bun.outputs.bun-path }}
+        run: |
+          SRC="$BUN_PATH"
+          [ -n "$SRC" ] || SRC="$(command -v bun)"
+          echo "source bun: $SRC"
+          mkdir -p "$RUNNER_TEMP/custom-bun"
+          cp "$SRC" "$RUNNER_TEMP/custom-bun/bun"
+          chmod +x "$RUNNER_TEMP/custom-bun/bun"
+          echo "path=$RUNNER_TEMP/custom-bun/bun" >> "$GITHUB_OUTPUT"
+      - id: action
+        uses: .
+        with:
+          github_token: ${{ github.token }}
+          path_to_bun_executable: ${{ steps.custom.outputs.path }}
+          classify_inline_comments: "false"
+      - name: Assert action succeeded using custom bun
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+          TOKEN_OUT: ${{ steps.action.outputs.github_token }}
+          CUSTOM: ${{ steps.custom.outputs.path }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: '$CONCLUSION'"
+          if [ "$OUTCOME" != "success" ]; then
+            echo "FAIL: expected success"
+            exit 1
+          fi
+          if [ -n "$CONCLUSION" ]; then
+            echo "FAIL: conclusion should be empty without a prompt"
+            exit 1
+          fi
+          if [ -z "$TOKEN_OUT" ]; then
+            echo "FAIL: github_token output is empty"
+            exit 1
+          fi
+          case ":$PATH:" in
+            *":$(dirname "$CUSTOM"):"*) echo "custom bun dir is on PATH" ;;
+            *) echo "FAIL: custom bun directory was not added to PATH"; exit 1 ;;
+          esac
+          echo "PASS"

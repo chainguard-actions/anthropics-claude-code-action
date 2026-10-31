@@ -1,0 +1,45 @@
+name: Test trigger and base branch inputs without prompt skip gracefully
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          github_token: ${{ github.token }}
+          assignee_trigger: "claude-bot"
+          base_branch: "main"
+          trigger_phrase: "@claude"
+          label_trigger: "claude"
+          classify_inline_comments: "false"
+      - name: Assert action skipped without running Claude
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          CONCLUSION: ${{ steps.action.outputs.conclusion }}
+          BRANCH: ${{ steps.action.outputs.branch_name }}
+          TOKEN_OUT: ${{ steps.action.outputs.github_token }}
+          EXPECTED_TOKEN: ${{ github.token }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "conclusion: '$CONCLUSION'"
+          echo "branch_name: '$BRANCH'"
+          if [ "$OUTCOME" != "success" ]; then
+            echo "FAIL: expected success outcome"
+            exit 1
+          fi
+          if [ -n "$CONCLUSION" ]; then
+            echo "FAIL: conclusion should be empty when no trigger/prompt"
+            exit 1
+          fi
+          if [ -n "$BRANCH" ]; then
+            echo "FAIL: no branch should be created when skipped"
+            exit 1
+          fi
+          if [ "$TOKEN_OUT" != "$EXPECTED_TOKEN" ]; then
+            echo "FAIL: github_token output does not match the provided token"
+            exit 1
+          fi
+          echo "PASS"
