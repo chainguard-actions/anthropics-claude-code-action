@@ -156,7 +156,7 @@ runs:
     - name: Install Dependencies
       shell: bash
       run: |
-        cd ${GITHUB_ACTION_PATH}
+        cd "${GITHUB_ACTION_PATH}"
         bun install --production
 
     - name: Install Claude Code
@@ -165,8 +165,14 @@ runs:
         PATH_TO_CLAUDE_CODE_EXECUTABLE: ${{ inputs.path_to_claude_code_executable }}
       run: |
         if [ -z "$PATH_TO_CLAUDE_CODE_EXECUTABLE" ]; then
-          CLAUDE_CODE_VERSION="2.1.316"
-          echo "Installing Claude Code v${CLAUDE_CODE_VERSION}..."
+          # Use the Claude Code version matching the installed Agent SDK when available
+          CLAUDE_CODE_VERSION=""
+          SDK_PKG="${GITHUB_ACTION_PATH}/node_modules/@anthropic-ai/claude-agent-sdk/package.json"
+          if [ -f "$SDK_PKG" ]; then
+            CLAUDE_CODE_VERSION=$(sed -n 's/.*"claudeCodeVersion"[[:space:]]*:[[:space:]]*"\([0-9A-Za-z.+-]*\)".*/\1/p' "$SDK_PKG" | head -n1) || true
+          fi
+          CLAUDE_CODE_VERSION="${CLAUDE_CODE_VERSION:-stable}"
+          echo "Installing Claude Code ${CLAUDE_CODE_VERSION}..."
           INSTALL_SCRIPT="$(mktemp)"
           for attempt in 1 2 3; do
             echo "Installation attempt $attempt..."
@@ -210,7 +216,7 @@ runs:
           echo "Changing directory to CLAUDE_WORKING_DIR: $CLAUDE_WORKING_DIR"
           cd "$CLAUDE_WORKING_DIR"
         fi
-        bun run ${GITHUB_ACTION_PATH}/src/index.ts
+        bun run "${GITHUB_ACTION_PATH}/src/index.ts"
       env:
         # Model configuration
         CLAUDE_CODE_ACTION: "1"
