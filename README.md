@@ -6,7 +6,7 @@ Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at
 
 | Version | Tag | Upstream commit | Hardening report |
 |---------|-----|-----------------|------------------|
-| v1 | [`v1`](https://github.com/chainguard-actions/anthropics-claude-code-action/tree/v1) | [`8ce9314`](https://github.com/anthropics/claude-code-action/commit/8ce9314fa9a404564fa7e954cd84f25bcba2b829) | — |
+| v1 | [`v1`](https://github.com/chainguard-actions/anthropics-claude-code-action/tree/v1) | [`4845bac`](https://github.com/anthropics/claude-code-action/commit/4845bacbb38b3c4b15d948f035349786f678e068) | [`HARDENING.md`](https://github.com/chainguard-actions/anthropics-claude-code-action/blob/v1/HARDENING.md), [`agent-approval-check`](https://github.com/chainguard-actions/anthropics-claude-code-action/blob/v1/agent-approval-check/HARDENING.md), [`base-action`](https://github.com/chainguard-actions/anthropics-claude-code-action/blob/v1/base-action/HARDENING.md) |
 | v1.0.166 | [`v1.0.166`](https://github.com/chainguard-actions/anthropics-claude-code-action/tree/v1.0.166) | [`f87768c`](https://github.com/anthropics/claude-code-action/commit/f87768c6d25f92ae6efa7175e223ef77d4cbf97f) | — |
 | v1.0.167 | [`v1.0.167`](https://github.com/chainguard-actions/anthropics-claude-code-action/tree/v1.0.167) | [`0fe28cd`](https://github.com/anthropics/claude-code-action/commit/0fe28cdb64e23015219b0e478100b7105fd7dfa1) | — |
 | v1.0.168 | [`v1.0.168`](https://github.com/chainguard-actions/anthropics-claude-code-action/tree/v1.0.168) | [`ba0aafd`](https://github.com/anthropics/claude-code-action/commit/ba0aafd4308cbba7165f9f2cdb0cfbed5a3c99ce) | — |
