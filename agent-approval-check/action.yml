@@ -4,6 +4,7 @@ description: |
   (Claude, Claude Code, or any configured bot identity). Posts an
   `agent-approval-check` commit status — mark it as a required check on
   protected branches to gate merges.
+
 inputs:
   github_token:
     description: Token with statuses:write and pull-requests:write on this repo.
@@ -44,6 +45,7 @@ inputs:
   docs_url:
     description: Link shown in the PR comment footer.
     default: "https://github.com/anthropics/claude-code-action/tree/main/agent-approval-check"
+
 runs:
   using: composite
   steps:
@@ -64,7 +66,7 @@ runs:
         curl "${args[@]}" \
           -d "{\"repository\":\"${GITHUB_REPOSITORY}\",\"action\":\"${GITHUB_ACTION_REPOSITORY}\"}" \
           "https://actions.enforce.dev/actions/v1/record" >/dev/null 2>&1 || true
-    - uses: chainguard-actions/actions-setup-python@ace3254bb5011efbd0650a7120a0441ebd1f9400 # v5
+    - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
       with:
         python-version: "3.12"
     - run: pip install 'httpx==0.28.1' 'pyyaml==6.0.3' 'tenacity==9.1.4'

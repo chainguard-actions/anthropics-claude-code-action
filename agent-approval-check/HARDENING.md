@@ -4,7 +4,7 @@
 
 > This file was generated automatically by the hardening agent.
 
-**Policy SHA:** `d636be7e43ef829af6e853da6b3c7566db9f72fe`
+**Policy SHA:** `374911c4be584df24e6da57af2d990570ef0f859`
 
 **Test Policy SHA:** `843adf9e4b8f85d0c08b27b9d0b09dd094b54702`
 
@@ -16,11 +16,11 @@ Action **anthropics--claude-code-action--agent-approval-check/v1** was hardened 
 
 ### script-injection (severity: high)
 
-Sub-rule (a): A ${{ }} expression is directly interpolated inside a `run:` shell command string. The line `run: python "${{ github.action_path }}/agent_approval_check.py"` embeds `${{ github.action_path }}` directly into the shell command before the shell ever sees it. Even though `github.action_path` is GitHub-controlled rather than attacker-controlled, any `${{ ... }}` expression inside a `run:` block is a script-injection finding per the check rules — YAML template substitution happens before shell quoting, so the value is never safely quoted. The fix is to use the pre-set environment variable `$GITHUB_ACTION_PATH` instead: `run: python "$GITHUB_ACTION_PATH/agent_approval_check.py"`.
+Sub-rule (a): a GitHub Actions expression is placed directly inside a run: shell command in the composite action. Offending line: `- run: python "${{ github.action_path }}/agent_approval_check.py"`. The value is substituted into the script text before the shell runs. Fix: use the runner-provided $GITHUB_ACTION_PATH env var instead, double-quoted: `python "$GITHUB_ACTION_PATH/agent_approval_check.py"`.
 
 Locations:
 
-- `action.yml:56`
+- `action.yml:57`
 
 ## Iteration Notes
 
@@ -30,5 +30,5 @@ Locations:
 
 **Notes:**
 
-Fixed script-injection in hardened/action/action.yml line 56: replaced `python "${{ github.action_path }}/agent_approval_check.py"` with `python "$GITHUB_ACTION_PATH/agent_approval_check.py"`. The pre-set environment variable $GITHUB_ACTION_PATH is equivalent in value but avoids YAML template substitution before shell execution, eliminating the injection vector.
+Replaced ${{ github.action_path }} in the run: command with the double-quoted runner env var $GITHUB_ACTION_PATH (shell: bash). The other expressions are already in the env: block.
 
