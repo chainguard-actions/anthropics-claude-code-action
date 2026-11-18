@@ -1,0 +1,262 @@
+import { checkHumanActor } from "../../github/validation/actor";
+import { defaultsToAutoMode } from "../permission-mode";
+import { pinPushBranch } from "../../github/operations/session-guard";
+import { createInitialComment } from "../../github/operations/comments/create-initial";
+import { setupBranch } from "../../github/operations/branch";
+import {
+  configureGitAuth,
+  replaceCheckoutCredentials,
+  setupSshSigning,
+} from "../../github/operations/git-config";
+import { prepareMcpConfig } from "../../mcp/install-mcp-server";
+import {
+  fetchGitHubData,
+  resolveTriggerTimestamp,
+  extractOriginalTitle,
+  extractOriginalBody,
+} from "../../github/data/fetcher";
+import { createPrompt } from "../../create-prompt";
+import {
+  isEntityContext,
+  isIssueCommentEvent,
+  isPullRequestReviewCommentEvent,
+} from "../../github/context";
+import { updateClaudeComment } from "../../github/operations/comments/update-claude-comment";
+import type { GitHubContext } from "../../github/context";
+import type { Octokits } from "../../github/api/client";
+import {
+  parseAllowedTools,
+  parseDeniedBashPatterns,
+  wrapperDenyRules,
+} from "../agent/parse-tools";
+
+/**
+ * Prepares the tag mode execution context.
+ *
+ * Tag mode responds to @claude mentions, issue assignments, or labels.
+ * Creates tracking comments showing progress and has full implementation capabilities.
+ */
+export async function prepareTagMode({
+  context,
+  octokit,
+  githubToken,
+}: {
+  context: GitHubContext;
+  octokit: Octokits;
+  githubToken: string;
+}) {
+  // Tag mode only handles entity-based events
+  if (!isEntityContext(context)) {
+    throw new Error("Tag mode requires entity context");
+  }
+
+  // Check if actor is human
+  await checkHumanActor(octokit.rest, context);
+
+  // Create initial tracking comment
+  const commentData = await createInitialComment(octokit.rest, context);
+  const commentId = commentData.id;
+
+  const triggerTime = await resolveTriggerTimestamp(context, octokit);
+  const originalTitle = extractOriginalTitle(context);
+  const originalBody = extractOriginalBody(context);
+
+  const githubData = await fetchGitHubData({
+    octokits: octokit,
+    repository: `${context.repository.owner}/${context.repository.repo}`,
+    prNumber: context.entityNumber.toString(),
+    isPR: context.isPR,
+    triggerUsername: context.actor,
+    triggerTime,
+    originalTitle,
+    originalBody,
+    includeCommentsByActor: context.inputs.includeCommentsByActor,
+    excludeCommentsByActor: context.inputs.excludeCommentsByActor,
+  });
+
+  // Setup branch
+  const editedAt =
+    context.eventAction === "edited" &&
+    (isIssueCommentEvent(context) || isPullRequestReviewCommentEvent(context))
+      ? context.payload.comment.updated_at
+      : undefined;
+  let branchInfo;
+  try {
+    branchInfo = await setupBranch(
+      octokit,
+      githubData,
+      context,
+      editedAt || triggerTime,
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await updateClaudeComment(octokit.rest, {
+      owner: context.repository.owner,
+      repo: context.repository.repo,
+      commentId,
+      body: message,
+      isPullRequestReviewComment: isPullRequestReviewCommentEvent(context),
+    }).catch((e) => console.error(`Failed to update tracking comment: ${e}`));
+    throw error;
+  }
+
+  // Configure git authentication
+  // SSH signing takes precedence if provided
+  const useSshSigning = !!context.inputs.sshSigningKey;
+  const useApiCommitSigning = context.inputs.useCommitSigning && !useSshSigning;
+
+  if (useSshSigning) {
+    // Setup SSH signing for commits
+    await setupSshSigning(context.inputs.sshSigningKey);
+
+    // Still configure git auth for push operations (user/email and remote URL)
+    const user = {
+      login: context.inputs.botName,
+      id: parseInt(context.inputs.botId),
+    };
+    try {
+      await configureGitAuth(githubToken, context, user);
+    } catch (error) {
+      console.error("Failed to configure git authentication:", error);
+      throw error;
+    }
+  } else if (!useApiCommitSigning) {
+    // Use bot_id and bot_name from inputs directly
+    const user = {
+      login: context.inputs.botName,
+      id: parseInt(context.inputs.botId),
+    };
+
+    try {
+      await configureGitAuth(githubToken, context, user);
+    } catch (error) {
+      console.error("Failed to configure git authentication:", error);
+      throw error;
+    }
+  } else {
+    // Commits go through the GitHub API, so no git user setup is needed, but
+    // the credential actions/checkout left in git config should still be
+    // replaced with the action's own.
+    try {
+      await replaceCheckoutCredentials(githubToken, context);
+    } catch (error) {
+      console.error("Failed to configure git credentials:", error);
+      throw error;
+    }
+  }
+
+  // Create prompt file
+  await createPrompt(
+    commentId,
+    branchInfo.baseBranch,
+    branchInfo.claudeBranch,
+    githubData,
+    context,
+  );
+
+  const userClaudeArgs = process.env.CLAUDE_ARGS || "";
+  const userAllowedMCPTools = parseAllowedTools(userClaudeArgs).filter((tool) =>
+    tool.startsWith("mcp__github_"),
+  );
+
+  const sessionBranch = branchInfo.claudeBranch || branchInfo.currentBranch;
+  // scripts/git-push.sh refuses to update any other branch.
+  pinPushBranch(sessionBranch);
+
+  const gitAddWrapper = `${process.env.GITHUB_ACTION_PATH}/scripts/git-add.sh`;
+  const gitRmWrapper = `${process.env.GITHUB_ACTION_PATH}/scripts/git-rm.sh`;
+  const gitPushWrapper = `${process.env.GITHUB_ACTION_PATH}/scripts/git-push.sh`;
+  const gitCommitWrapper = `${process.env.GITHUB_ACTION_PATH}/scripts/git-commit.sh`;
+
+  // Build claude_args for tag mode with required tools.
+  // Edit/MultiEdit/Write are intentionally omitted: the permission mode (set below) allows
+  // file edits inside $GITHUB_WORKSPACE and doesn't allow every write outside (e.g. ~/.bashrc).
+  // Listing them here would grant blanket write access to the whole runner (Asana 1213310082312048).
+  const tagModeTools = [
+    "Glob",
+    "Grep",
+    "LS",
+    "Read",
+    "mcp__github_comment__update_claude_comment",
+    "mcp__github_ci__get_ci_status",
+    "mcp__github_ci__get_workflow_run_details",
+    "mcp__github_ci__download_job_log",
+    ...userAllowedMCPTools,
+  ];
+
+  // Add git commands when using git CLI (no API commit signing, or SSH signing)
+  // SSH signing still uses git CLI, just with signing enabled
+  if (!useApiCommitSigning) {
+    tagModeTools.push(
+      `Bash(${gitAddWrapper}:*)`,
+      `Bash(${gitCommitWrapper}:*)`,
+      `Bash(${gitPushWrapper}:*)`,
+      `Bash(${gitRmWrapper}:*)`,
+    );
+  } else {
+    // When using API commit signing, use MCP file ops tools
+    tagModeTools.push(
+      "mcp__github_file_ops__commit_files",
+      "mcp__github_file_ops__delete_files",
+    );
+  }
+
+  // Get our GitHub MCP servers configuration
+  const ourMcpConfig = await prepareMcpConfig({
+    githubToken,
+    owner: context.repository.owner,
+    repo: context.repository.repo,
+    branch: sessionBranch,
+    baseBranch: branchInfo.baseBranch,
+    claudeCommentId: commentId.toString(),
+    allowedTools: Array.from(new Set(tagModeTools)),
+    mode: "tag",
+    context,
+  });
+
+  // Build complete claude_args with multiple --mcp-config flags
+  let claudeArgs = "";
+
+  // Add our GitHub servers config
+  const escapedOurConfig = ourMcpConfig.replace(/'/g, "'\\''");
+  claudeArgs = `--mcp-config '${escapedOurConfig}'`;
+
+  // Add required tools for tag mode.
+  // auto: file edits allowed inside cwd ($GITHUB_WORKSPACE), and a safety review decides
+  // calls that no rule covers.
+  // acceptEdits: file edits allowed inside cwd, denied outside. The headless SDK has no
+  // prompt handler, so anything that falls through to "ask" is denied.
+  const permissionMode = defaultsToAutoMode() ? "auto" : "acceptEdits";
+  claudeArgs += ` --permission-mode ${permissionMode} --allowedTools "${tagModeTools.join(",")}"`;
+
+  // Deny rules match the command's text, so a workflow's deny of a git command
+  // wouldn't match the wrapper that runs it. Deny the wrappers too.
+  const userDeniedTools = parseDeniedBashPatterns(userClaudeArgs);
+  const wrappers: [string, string][] = [
+    ["git commit", gitCommitWrapper],
+    ["git push", gitPushWrapper],
+    ["git add", gitAddWrapper],
+    ["git rm", gitRmWrapper],
+  ];
+  const deniedWrappers = wrappers.flatMap(([command, wrapper]) =>
+    wrapperDenyRules(userDeniedTools, command, wrapper),
+  );
+  if (deniedWrappers.length > 0) {
+    // A narrower rule can hold quotes or a $, and this string gets parsed again.
+    const rules = deniedWrappers.join(",").replace(/'/g, "'\\''");
+    claudeArgs += ` --disallowedTools '${rules}'`;
+  }
+
+  // Append user's claude_args (which may have more --mcp-config flags, or another
+  // --permission-mode, where the last one wins)
+  if (userClaudeArgs) {
+    claudeArgs += ` ${userClaudeArgs}`;
+  }
+
+  return {
+    commentId,
+    branchInfo,
+    mcpConfig: ourMcpConfig,
+    claudeArgs: claudeArgs.trim(),
+  };
+}
